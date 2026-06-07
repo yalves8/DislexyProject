@@ -91,7 +91,8 @@ cp .env.example .env
 
 ### 2. Backend
 
-```bash
+```powershell
+# ⚠️ Todos os comandos abaixo devem ser executados dentro da pasta backend/
 cd backend
 
 python -m venv .venv
@@ -100,12 +101,12 @@ python -m venv .venv
 
 pip install -r requirements.txt
 
-# Criar usuários de teste
+# Criar usuários de teste (rodar uma vez)
 python seed.py
 # → professor / senha123
 # → aluno     / senha123
 
-# Iniciar servidor
+# Iniciar servidor  ← rodar de dentro de backend/
 uvicorn app.main:app --reload
 # API disponível em: http://localhost:8000
 # Swagger docs em:   http://localhost:8000/docs
