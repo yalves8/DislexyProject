@@ -7,8 +7,15 @@ Uso:
 """
 import sys
 import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Garante que o .env é carregado antes de qualquer import da app
+_here = Path(__file__).parent
+sys.path.insert(0, str(_here))
+
+from dotenv import load_dotenv
+load_dotenv(_here / ".env")  # backend/.env
+load_dotenv(_here.parent / ".env")  # raiz do projeto (fallback)
 
 from sqlmodel import Session, select
 import bcrypt
