@@ -27,7 +27,12 @@ class TokenResponse(BaseModel):
     username: str
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    status_code=status.HTTP_201_CREATED,
+    summary="Criar conta",
+    description="Cria uma nova conta de aluno ou professor. Para `role` use `'student'` ou `'teacher'`.",
+)
 def register(body: RegisterRequest, session: Session = Depends(get_session)):
     if body.role not in ("student", "teacher"):
         raise HTTPException(status_code=400, detail="role deve ser 'student' ou 'teacher'")
@@ -47,7 +52,12 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)):
     return {"message": "Usuario criado com sucesso"}
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="Login",
+    description="Autentica o usuário e retorna um JWT Bearer token. Use o token no header `Authorization: Bearer <token>` para acessar rotas protegidas.",
+)
 def login(body: LoginRequest, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == body.username)).first()
     if not user or not verify_password(body.password, user.password_hash):

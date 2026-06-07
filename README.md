@@ -1,81 +1,177 @@
-# Assistente de Leitura para Estudantes com Dislexia
+# DilexyProject — Portal de Leitura para Estudantes com Dislexia
 
-Aplicação MVP que adapta exercícios escolares para crianças com dislexia, utilizando Gemini Vision e RAG com LlamaIndex.
+Plataforma web que adapta exercícios escolares para crianças com dislexia, com perfis distintos para **alunos** e **professores**.
 
 ## O Problema
 
-Ana tem 10 anos e sofre com o ritmo das salas de aula tradicionais. Enunciados longos, textos densos e métodos puramente fonéticos tornam o aprendizado frustrante — não por falta de inteligência, mas por uma forma diferente de processar informação. A dislexia afeta entre 5% e 17% da população mundial, e no Brasil estima-se que 2,3 a 7 milhões de alunos da educação básica convivam com algum grau dessa condição.
+A dislexia afeta entre 5% e 17% da população mundial. Enunciados longos, textos densos e fontes inadequadas tornam o aprendizado frustrante — não por falta de inteligência, mas por uma forma diferente de processar informação. Estimam-se 2,3 a 7 milhões de alunos brasileiros afetados.
 
 ## Solução
 
-Um assistente que recebe a foto de um exercício escolar e:
+Um portal onde o professor vincula alunos e acompanha o progresso, e o aluno acessa um espaço personalizado que:
 
-1. **Extrai e adapta o texto** — reescreve o enunciado com frases curtas, vocabulário simples e bullet points (Gemini Vision)
-2. **Responde dúvidas** — o aluno pode perguntar sobre o conteúdo e receber uma explicação gentil e contextualizada (LlamaIndex RAG + Gemini)
+1. **Adapta exercícios** — envia foto do enunciado, recebe versão com frases curtas, vocabulário simples e bullet points (Gemini Vision)
+2. **Responde dúvidas** — tutor gentil contextualizado ao conteúdo adaptado (LlamaIndex RAG + Gemini)
+3. **Personaliza a leitura** — fonte amigável (OpenDyslexic, Comic Sans, Arial), régua de foco, cor de sobreposição e tamanho de fonte configuráveis
 
-## Tecnologias
-
-| Camada | Tecnologia | Papel |
-|---|---|---|
-| LLM + Visão | Gemini 3 Flash (Google) | Extração de texto da imagem + reescrita acessível |
-| RAG | LlamaIndex + VectorStoreIndex | Indexação do conteúdo adaptado para responder dúvidas |
-| Interface | Streamlit | UI web simples e interativa |
+---
 
 ## Arquitetura
 
 ```
-app.py                  # Interface Streamlit — fluxo de 3 etapas
-utils/
-├── gemini_vision.py    # Gemini Vision: extrai e adapta texto da imagem
-└── rag.py              # LlamaIndex: indexa conteúdo e responde perguntas
+DilexyProject/          ← monorepo
+├── frontend/           ← React 19 + TypeScript + Vite + Tailwind CSS v4
+│   └── src/
+│       ├── pages/      ← LoginSelect, StudentLogin, StudentPortal, TeacherLogin, TeacherDashboard
+│       ├── components/ ← ReadingSettings, ActivityCard
+│       ├── contexts/   ← AuthContext (JWT + role)
+│       └── services/   ← api.ts (cliente HTTP)
+│
+├── backend/            ← FastAPI + SQLModel + SQLite
+│   └── app/
+│       ├── routers/    ← auth, students, teacher
+│       ├── models/     ← User, StudentSettings, TeacherStudentLink, Activity
+│       ├── services/   ← gemini_vision, rag (LlamaIndex)
+│       ├── auth.py     ← JWT utilities + role guard
+│       └── database.py ← engine SQLite + get_session
+│
+└── plan_project.md     ← planejamento e issues do projeto
 ```
+
+### Stack
+
+| Camada | Tecnologia |
+|--------|------------|
+| Frontend | React 19, TypeScript, Vite 6, Tailwind CSS v4, React Router v7 |
+| Backend | FastAPI, SQLModel, SQLite |
+| Auth | JWT (python-jose) + bcrypt |
+| IA — Visão | Google Gemini Vision (gemini-3-flash-preview) |
+| IA — RAG | LlamaIndex + Gemini Embeddings |
 
 ### Fluxo de dados
 
 ```
-[Imagem do exercício]
+[Aluno faz upload da imagem]
         ↓
-[Gemini Vision] → extrai texto + reescreve para dislexia
+[FastAPI → Gemini Vision] → extrai texto + reescreve para dislexia
         ↓
-[Streamlit exibe versão adaptada]
+[Atividade salva no banco (SQLite)]
         ↓
-[LlamaIndex indexa o conteúdo em memória]
+[Aluno faz pergunta ao tutor]
         ↓
-[Aluno faz pergunta] → RAG recupera contexto → Gemini responde
+[LlamaIndex RAG → Gemini] → resposta simples e encorajadora
         ↓
-[Tutor exibe resposta simples e encorajadora]
+[Professor acessa dashboard → vê todas as atividades do aluno]
 ```
+
+---
 
 ## Pré-requisitos
 
 - Python 3.11+
+- Node.js 18+
 - Chave de API do Google Gemini ([obter aqui](https://aistudio.google.com/app/apikey))
 
-## Instalação
+---
+
+## Instalação e execução
+
+### 1. Clone e configure variáveis de ambiente
 
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/seu-usuario/nome-do-repo.git
-cd nome-do-repo
+git clone <url-do-repo>
+cd DilexyProject
 
-# 2. Instale as dependências
+cp .env.example .env
+# Edite o .env:
+#   GEMINI_API_KEY=sua_chave
+#   SECRET_KEY=chave_jwt_longa_e_segura
+#   DATABASE_URL=sqlite:///./dilexy.db
+```
+
+### 2. Backend
+
+```bash
+cd backend
+
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+# source .venv/bin/activate   # Linux/Mac
+
 pip install -r requirements.txt
 
-# 3. Configure a chave da API
-cp .env.example .env
-# Edite o .env e adicione sua GEMINI_API_KEY
+# Criar usuários de teste
+python seed.py
+# → professor / senha123
+# → aluno     / senha123
+
+# Iniciar servidor
+uvicorn app.main:app --reload
+# API disponível em: http://localhost:8000
+# Swagger docs em:   http://localhost:8000/docs
 ```
 
-## Como usar
+### 3. Frontend
 
 ```bash
-python -m streamlit run app.py
+cd frontend
+npm install
+npm run dev
+# App disponível em: http://localhost:5173
 ```
 
-Acesse `http://localhost:8501`, envie uma foto de exercício escolar e clique em **"Adaptar para mim ✨"**.
+---
 
-## Roadmap
+## API — Endpoints
 
-- **V1** — RAG sobre apostilas e livros didáticos em PDF (LlamaIndex)
-- **V2** — Agente autônomo que adapta atividades sem intervenção manual (LangGraph)
-- **V3** — Analytics de progresso + privacidade local (Edge AI + LGPD)
+### Auth
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| POST | `/auth/register` | Cria conta de aluno ou professor |
+| POST | `/auth/login` | Autentica e retorna JWT |
+
+### Aluno (requer JWT com role=student)
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/students/me/settings` | Configurações de leitura do aluno |
+| PUT | `/students/me/settings` | Atualiza configurações de leitura |
+| POST | `/students/adapt-image` | Envia imagem → retorna texto adaptado |
+| POST | `/students/ask` | Pergunta ao tutor RAG |
+| POST | `/students/activities` | Salva atividade adaptada |
+| GET | `/students/activities` | Lista atividades do aluno |
+
+### Professor (requer JWT com role=teacher)
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET | `/teacher/students` | Lista alunos vinculados |
+| GET | `/teacher/students/{id}/activities` | Atividades de um aluno específico |
+
+Documentação interativa completa: **http://localhost:8000/docs**
+
+---
+
+## Perfis e fluxo de telas
+
+```
+/ → Portal de Leitura (escolha de perfil)
+      ├── Sou Aluno     → /student/login  → /student/portal
+      └── Sou Professor → /teacher/login  → /teacher/dashboard
+```
+
+**Credenciais de teste (após rodar `seed.py`):**
+```
+Aluno:     username=aluno      senha=senha123
+Professor: username=professor  senha=senha123
+```
+
+---
+
+## Estrutura de branches
+
+```
+main          ← código estável (protegido, exige PR + 1 aprovação)
+  └── develop ← integração contínua
+        └── feat/* / fix/* / chore/*
+```
+
+Veja `plan_project.md` para o planejamento completo, issues e workflow do time.

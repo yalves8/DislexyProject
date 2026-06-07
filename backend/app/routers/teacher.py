@@ -11,7 +11,7 @@ router = APIRouter(prefix="/teacher", tags=["teacher"])
 _teacher = require_role("teacher")
 
 
-@router.get("/students")
+@router.get("/students", summary="Listar alunos", description="Retorna todos os alunos vinculados ao professor autenticado, incluindo suas configurações de leitura.")
 def list_students(
     current_user: User = Depends(_teacher),
     session: Session = Depends(get_session),
@@ -34,7 +34,7 @@ def list_students(
     return students
 
 
-@router.get("/students/{student_id}/activities")
+@router.get("/students/{student_id}/activities", summary="Atividades do aluno", description="Retorna todas as atividades adaptadas de um aluno específico. Retorna 403 se o aluno não estiver vinculado ao professor autenticado.")
 def get_student_activities(
     student_id: int,
     current_user: User = Depends(_teacher),

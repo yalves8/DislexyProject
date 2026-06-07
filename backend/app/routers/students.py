@@ -25,7 +25,7 @@ class SettingsBody(BaseModel):
     ruler_enabled: bool
 
 
-@router.get("/me/settings")
+@router.get("/me/settings", summary="Configurações de leitura", description="Retorna as configurações de leitura do aluno autenticado (fonte, tamanho, cor de sobreposição, régua).")
 def get_settings(
     current_user: User = Depends(_student),
     session: Session = Depends(get_session),
@@ -36,7 +36,7 @@ def get_settings(
     return s
 
 
-@router.put("/me/settings")
+@router.put("/me/settings", summary="Salvar configurações", description="Atualiza as configurações de leitura. Campos: `font_preference` (OpenDyslexic | Comic Sans MS | Arial), `font_size` (px), `overlay_color` (hex), `ruler_enabled` (bool).")
 def update_settings(
     body: SettingsBody,
     current_user: User = Depends(_student),
@@ -58,7 +58,7 @@ def update_settings(
 
 # ── Adaptação de imagem ───────────────────────────────────────────────────────
 
-@router.post("/adapt-image")
+@router.post("/adapt-image", summary="Adaptar imagem", description="Recebe uma imagem (jpg/png/webp) de exercício escolar. Usa Gemini Vision para extrair e reescrever o texto em formato acessível para dislexia. Retorna `original`, `adapted` e `raw` (resposta completa do modelo).")
 async def adapt(
     file: UploadFile = File(...),
     current_user: User = Depends(_student),
@@ -80,7 +80,7 @@ class AskBody(BaseModel):
     question: str
 
 
-@router.post("/ask")
+@router.post("/ask", summary="Perguntar ao tutor", description="Envia uma pergunta ao tutor RAG. Passe o campo `context` com o texto adaptado (campo `raw` retornado por `/adapt-image`) e `question` com a dúvida do aluno.")
 def ask_tutor(
     body: AskBody,
     current_user: User = Depends(_student),
@@ -102,7 +102,7 @@ class ActivityBody(BaseModel):
     image_path: str | None = None
 
 
-@router.post("/activities", status_code=201)
+@router.post("/activities", status_code=201, summary="Salvar atividade", description="Persiste uma atividade adaptada no banco. Campos: `original_text`, `adapted_text` e opcionalmente `image_path`.")
 def save_activity(
     body: ActivityBody,
     current_user: User = Depends(_student),
@@ -120,7 +120,7 @@ def save_activity(
     return activity
 
 
-@router.get("/activities")
+@router.get("/activities", summary="Listar atividades", description="Retorna todas as atividades adaptadas do aluno autenticado, ordenadas da mais recente para a mais antiga.")
 def list_activities(
     current_user: User = Depends(_student),
     session: Session = Depends(get_session),
