@@ -210,19 +210,71 @@ Criar em **Issues → Labels**:
 
 ## Issues Iniciais
 
+### Chore — Setup e Infraestrutura
+
 ```
-[chore]  Estruturar monorepo (criar pastas frontend/ e backend/)
-[feat]   Configurar FastAPI com SQLite e SQLModel
-[feat]   Criar models User, Student, Teacher, Activity
-[feat]   Implementar POST /auth/login com JWT
-[feat]   Implementar GET /teacher/students
-[feat]   Criar projeto React com Vite + TypeScript + Tailwind
-[feat]   Tela LoginSelect — escolha Professor / Aluno
-[feat]   Tela StudentLogin com ReadingSettings
-[feat]   Tela StudentPortal — upload + adaptação + tutor
-[feat]   Tela TeacherDashboard — listagem de atividades
-[feat]   AuthContext — JWT storage + rotas protegidas
-[docs]   Atualizar README com nova arquitetura
+[chore]  Estruturar monorepo (criar pastas frontend/ e backend/)       → chore          ✅ feito
+[chore]  Inicializar projeto React com Vite + TypeScript + Tailwind    → frontend, chore
+[chore]  Configurar React Router DOM e estrutura de rotas              → frontend, chore
+[chore]  Script de seed — criar usuários iniciais para testes          → backend, chore
+```
+
+### Backend — Banco de Dados e Modelos
+
+```
+[feat]   Configurar FastAPI com SQLite e SQLModel                      → backend, database
+[feat]   Criar models User, Student, Teacher, Activity                 → backend, database
+[feat]   Criar tabela TeacherStudentLink (vincular professor ↔ aluno)  → backend, database
+```
+
+### Backend — Autenticação
+
+```
+[feat]   Implementar POST /auth/register — criar conta aluno/professor → backend, auth
+[feat]   Implementar POST /auth/login com JWT                          → backend, auth
+[feat]   Middleware JWT — proteger rotas autenticadas no FastAPI        → backend, auth
+```
+
+### Backend — Endpoints de Aluno
+
+```
+[feat]   PUT  /students/settings — salvar configurações de leitura     → backend, feature
+[feat]   POST /students/activities — salvar atividade adaptada         → backend, feature
+[feat]   POST /students/adapt-image — Gemini Vision → texto adaptado   → backend, feature
+[feat]   POST /students/ask — RAG → resposta do tutor                  → backend, feature
+```
+
+### Backend — Endpoints de Professor
+
+```
+[feat]   GET /teacher/students — listar alunos vinculados              → backend, feature
+[feat]   GET /teacher/students/{id}/activities — atividades do aluno   → backend, feature
+```
+
+### Frontend — Componentes
+
+```
+[feat]   Componente ReadingSettings — fonte, régua, cor, tamanho       → frontend, feature
+[feat]   Componente ActivityCard — card de atividade adaptada          → frontend, feature
+[feat]   AuthContext — JWT storage + rotas protegidas                  → frontend, auth
+[feat]   Rotas protegidas — redirecionar para login se sem JWT         → frontend, auth
+```
+
+### Frontend — Telas
+
+```
+[feat]   Tela LoginSelect — escolha Professor / Aluno                  → frontend, feature
+[feat]   Tela StudentLogin com ReadingSettings                         → frontend, feature
+[feat]   Tela TeacherLogin — login do professor                        → frontend, feature
+[feat]   Tela StudentPortal — upload + adaptação + tutor               → frontend, feature
+[feat]   Tela TeacherDashboard — listagem de atividades por aluno      → frontend, feature
+```
+
+### Documentação
+
+```
+[docs]   Atualizar README com nova arquitetura                         → docs
+[docs]   Documentar campos dos endpoints (complementar Swagger)        → docs
 ```
 
 ---
