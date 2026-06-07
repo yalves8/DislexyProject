@@ -1,1 +1,20 @@
-# SQLite connection e inicialização das tabelas (SQLModel)
+import os
+from sqlmodel import SQLModel, create_engine, Session
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dilexy.db")
+
+# check_same_thread=False necessário para SQLite com FastAPI
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+
+def create_db_and_tables() -> None:
+    # Importar models aqui garante que as tabelas sejam registradas no metadata
+    import app.models.user  # noqa: F401
+    import app.models.activity  # noqa: F401
+    SQLModel.metadata.create_all(engine)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
