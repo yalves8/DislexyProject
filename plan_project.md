@@ -230,44 +230,44 @@ Criar em **Issues → Labels**:
 ### Backend — Autenticação
 
 ```
-[feat]   Implementar POST /auth/register — criar conta aluno/professor → backend, auth
-[feat]   Implementar POST /auth/login com JWT                          → backend, auth
-[feat]   Middleware JWT — proteger rotas autenticadas no FastAPI        → backend, auth
+[feat]   Implementar POST /auth/register — criar conta aluno/professor → backend, auth      ✅ feito
+[feat]   Implementar POST /auth/login com JWT                          → backend, auth      ✅ feito
+[feat]   Middleware JWT — proteger rotas autenticadas no FastAPI        → backend, auth      ✅ feito
 ```
 
 ### Backend — Endpoints de Aluno
 
 ```
-[feat]   PUT  /students/settings — salvar configurações de leitura     → backend, feature
-[feat]   POST /students/activities — salvar atividade adaptada         → backend, feature
-[feat]   POST /students/adapt-image — Gemini Vision → texto adaptado   → backend, feature
-[feat]   POST /students/ask — RAG → resposta do tutor                  → backend, feature
+[feat]   PUT  /students/settings — salvar configurações de leitura     → backend, feature   ✅ feito
+[feat]   POST /students/activities — salvar atividade adaptada         → backend, feature   ✅ feito
+[feat]   POST /students/adapt-image — Gemini Vision → texto adaptado   → backend, feature   ✅ feito
+[feat]   POST /students/ask — RAG → resposta do tutor                  → backend, feature   ✅ feito
 ```
 
 ### Backend — Endpoints de Professor
 
 ```
-[feat]   GET /teacher/students — listar alunos vinculados              → backend, feature
-[feat]   GET /teacher/students/{id}/activities — atividades do aluno   → backend, feature
+[feat]   GET /teacher/students — listar alunos vinculados              → backend, feature   ✅ feito
+[feat]   GET /teacher/students/{id}/activities — atividades do aluno   → backend, feature   ✅ feito
 ```
 
 ### Frontend — Componentes
 
 ```
-[feat]   Componente ReadingSettings — fonte, régua, cor, tamanho       → frontend, feature
-[feat]   Componente ActivityCard — card de atividade adaptada          → frontend, feature
-[feat]   AuthContext — JWT storage + rotas protegidas                  → frontend, auth
-[feat]   Rotas protegidas — redirecionar para login se sem JWT         → frontend, auth
+[feat]   Componente ReadingSettings — fonte, régua, cor, tamanho       → frontend, feature  ✅ feito
+[feat]   Componente ActivityCard — card de atividade adaptada          → frontend, feature  ✅ feito
+[feat]   AuthContext — JWT storage + rotas protegidas                  → frontend, auth     ✅ feito
+[feat]   Rotas protegidas — redirecionar para login se sem JWT         → frontend, auth     ✅ feito
 ```
 
 ### Frontend — Telas
 
 ```
-[feat]   Tela LoginSelect — escolha Professor / Aluno                  → frontend, feature
-[feat]   Tela StudentLogin com ReadingSettings                         → frontend, feature
-[feat]   Tela TeacherLogin — login do professor                        → frontend, feature
-[feat]   Tela StudentPortal — upload + adaptação + tutor               → frontend, feature
-[feat]   Tela TeacherDashboard — listagem de atividades por aluno      → frontend, feature
+[feat]   Tela LoginSelect — escolha Professor / Aluno                  → frontend, feature  ✅ feito
+[feat]   Tela StudentLogin com ReadingSettings                         → frontend, feature  ✅ feito
+[feat]   Tela TeacherLogin — login do professor                        → frontend, feature  ✅ feito
+[feat]   Tela StudentPortal — upload + adaptação + tutor               → frontend, feature  ✅ feito
+[feat]   Tela TeacherDashboard — listagem de atividades por aluno      → frontend, feature  ✅ feito
 ```
 
 ### Documentação
