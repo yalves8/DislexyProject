@@ -1,2 +1,54 @@
-# GET /teacher/students                        — lista alunos vinculados ao professor
-# GET /teacher/students/{student_id}/activities — atividades de um aluno específico
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+
+from app.auth import require_role
+from app.database import get_session
+from app.models.user import User, TeacherStudentLink, StudentSettings
+from app.models.activity import Activity
+
+router = APIRouter(prefix="/teacher", tags=["teacher"])
+
+_teacher = require_role("teacher")
+
+
+@router.get("/students")
+def list_students(
+    current_user: User = Depends(_teacher),
+    session: Session = Depends(get_session),
+):
+    links = session.exec(
+        select(TeacherStudentLink).where(TeacherStudentLink.teacher_id == current_user.id)
+    ).all()
+
+    students = []
+    for link in links:
+        student = session.get(User, link.student_id)
+        settings = session.get(StudentSettings, link.student_id)
+        if student:
+            students.append({
+                "id": student.id,
+                "username": student.username,
+                "created_at": student.created_at,
+                "settings": settings,
+            })
+    return students
+
+
+@router.get("/students/{student_id}/activities")
+def get_student_activities(
+    student_id: int,
+    current_user: User = Depends(_teacher),
+    session: Session = Depends(get_session),
+):
+    link = session.exec(
+        select(TeacherStudentLink).where(
+            TeacherStudentLink.teacher_id == current_user.id,
+            TeacherStudentLink.student_id == student_id,
+        )
+    ).first()
+    if not link:
+        raise HTTPException(403, "Aluno nao vinculado a este professor")
+
+    return session.exec(
+        select(Activity).where(Activity.student_id == student_id).order_by(Activity.created_at.desc())
+    ).all()
