@@ -216,15 +216,15 @@ Criar em **Issues → Labels**:
 [chore]  Estruturar monorepo (criar pastas frontend/ e backend/)       → chore          ✅ feito
 [chore]  Inicializar projeto React com Vite + TypeScript + Tailwind    → frontend, chore  ✅ feito
 [chore]  Configurar React Router DOM e estrutura de rotas              → frontend, chore  ✅ feito
-[chore]  Script de seed — criar usuários iniciais para testes          → backend, chore
+[chore]  Script de seed — criar usuários iniciais para testes          → backend, chore  ✅ feito
 ```
 
 ### Backend — Banco de Dados e Modelos
 
 ```
-[feat]   Configurar FastAPI com SQLite e SQLModel                      → backend, database
-[feat]   Criar models User, Student, Teacher, Activity                 → backend, database
-[feat]   Criar tabela TeacherStudentLink (vincular professor ↔ aluno)  → backend, database
+[feat]   Configurar FastAPI com SQLite e SQLModel                      → backend, database  ✅ feito
+[feat]   Criar models User, Student, Teacher, Activity                 → backend, database  ✅ feito
+[feat]   Criar tabela TeacherStudentLink (vincular professor ↔ aluno)  → backend, database  ✅ feito
 ```
 
 ### Backend — Autenticação
