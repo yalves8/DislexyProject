@@ -273,8 +273,8 @@ Criar em **Issues → Labels**:
 ### Documentação
 
 ```
-[docs]   Atualizar README com nova arquitetura                         → docs
-[docs]   Documentar campos dos endpoints (complementar Swagger)        → docs
+[docs]   Atualizar README com nova arquitetura                         → docs  ✅ feito
+[docs]   Documentar campos dos endpoints (complementar Swagger)        → docs  ✅ feito
 ```
 
 ---
