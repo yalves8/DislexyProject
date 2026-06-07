@@ -214,7 +214,7 @@ Criar em **Issues → Labels**:
 
 ```
 [chore]  Estruturar monorepo (criar pastas frontend/ e backend/)       → chore          ✅ feito
-[chore]  Inicializar projeto React com Vite + TypeScript + Tailwind    → frontend, chore
+[chore]  Inicializar projeto React com Vite + TypeScript + Tailwind    → frontend, chore  ✅ feito
 [chore]  Configurar React Router DOM e estrutura de rotas              → frontend, chore
 [chore]  Script de seed — criar usuários iniciais para testes          → backend, chore
 ```
