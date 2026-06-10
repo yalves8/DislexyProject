@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import ActivityCard from "../components/ActivityCard";
+import AppLogo from "../components/AppLogo";
 
 interface Student {
   id: number;
@@ -40,7 +41,10 @@ export default function TeacherDashboard() {
     <div className="min-h-screen bg-[#F5F5F0]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <h1 className="font-bold text-gray-800">🎓 Dashboard do Professor</h1>
+        <h1 className="font-bold text-gray-800 flex items-center gap-2">
+          <AppLogo variant="teacher" />
+          Dashboard do Professor
+        </h1>
         <div className="flex items-center gap-4">
           <span className="text-sm text-gray-500">Olá, {user!.username}</span>
           <button onClick={logout} className="text-sm text-red-500 hover:underline">Sair</button>
