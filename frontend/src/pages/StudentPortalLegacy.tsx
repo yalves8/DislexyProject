@@ -9,7 +9,7 @@ interface Activity {
   created_at: string;
 }
 
-export default function StudentPortal() {
+export default function StudentPortalLegacy() {
   const { user, logout } = useAuth();
 
   const [adapted, setAdapted] = useState("");

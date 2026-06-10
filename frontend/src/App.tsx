@@ -3,7 +3,9 @@ import { useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginSelect from "./pages/LoginSelect";
 import StudentLogin from "./pages/StudentLogin";
-import StudentPortal from "./pages/StudentPortal";
+import StudentLibrary from "./pages/StudentLibrary";
+import StudentPortalLegacy from "./pages/StudentPortalLegacy";
+import StudentReadingView from "./pages/StudentReadingView";
 import TeacherLogin from "./pages/TeacherLogin";
 import TeacherDashboard from "./pages/TeacherDashboard";
 
@@ -39,7 +41,23 @@ export default function App() {
         path="/student/portal"
         element={
           <ProtectedRoute role="student">
-            <StudentPortal />
+            <StudentLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/portal/:subjectId/:materialId"
+        element={
+          <ProtectedRoute role="student">
+            <StudentReadingView />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/legacy"
+        element={
+          <ProtectedRoute role="student">
+            <StudentPortalLegacy />
           </ProtectedRoute>
         }
       />

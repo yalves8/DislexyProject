@@ -1,4 +1,4 @@
-interface Settings {
+export interface ReadingSettingsValue {
   font_preference: string;
   font_size: number;
   overlay_color: string;
@@ -6,14 +6,14 @@ interface Settings {
 }
 
 interface Props {
-  value: Settings;
-  onChange: (s: Settings) => void;
+  value: ReadingSettingsValue;
+  onChange: (s: ReadingSettingsValue) => void;
 }
 
 const FONTS = ["OpenDyslexic", "Comic Sans MS", "Arial"];
 
 export default function ReadingSettings({ value, onChange }: Props) {
-  const set = (patch: Partial<Settings>) => onChange({ ...value, ...patch });
+  const set = (patch: Partial<ReadingSettingsValue>) => onChange({ ...value, ...patch });
 
   return (
     <div className="border border-gray-200 rounded-xl p-5 flex flex-col gap-5">
