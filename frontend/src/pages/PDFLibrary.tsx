@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { uploadPDF, listPDFs, deletePDF, PDFDocument } from "../services/pdfApi";
+import SettingsModal from "../components/SettingsModal";
 
 export default function PDFLibrary() {
   const { user } = useAuth();
@@ -11,6 +12,11 @@ export default function PDFLibrary() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+
+  const location = useLocation();
+  const [showSettings, setShowSettings] = useState(
+    !!(location.state as { firstLogin?: boolean } | null)?.firstLogin
+  );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +175,8 @@ export default function PDFLibrary() {
           </div>
         )}
       </div>
+
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }
