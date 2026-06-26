@@ -24,7 +24,7 @@ export default function ReadingSettings({ value, onChange }: Props) {
       {/* Fonte */}
       <div className="flex flex-col gap-2">
         <label className="text-sm text-gray-600 flex items-center gap-1">
-          <span>T</span> Fonte Amigável
+          <span>🔤</span> Fonte Amigável
         </label>
         {FONTS.map((f) => (
           <label

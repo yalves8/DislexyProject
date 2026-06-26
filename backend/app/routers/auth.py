@@ -36,7 +36,7 @@ class TokenResponse(BaseModel):
 def register(body: RegisterRequest, session: Session = Depends(get_session)):
     existing = session.exec(select(User).where(User.username == body.username)).first()
     if existing:
-        raise HTTPException(status_code=409, detail="Usuario ja existe")
+        raise HTTPException(status_code=409, detail="Usuário já existe")
 
     user = User(username=body.username, password_hash=hash_password(body.password), role="user")
     session.add(user)
@@ -45,7 +45,7 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)):
     session.add(StudentSettings(user_id=user.id))
 
     session.commit()
-    return {"message": "Usuario criado com sucesso"}
+    return {"message": "Usuário criado com sucesso"}
 
 
 @router.post(
@@ -57,7 +57,7 @@ def register(body: RegisterRequest, session: Session = Depends(get_session)):
 def login(body: LoginRequest, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.username == body.username)).first()
     if not user or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais invalidas")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais inválidas")
 
     token = create_access_token({"sub": str(user.id), "role": user.role})
     return TokenResponse(access_token=token, role=user.role, username=user.username)

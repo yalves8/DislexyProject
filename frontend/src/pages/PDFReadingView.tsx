@@ -18,7 +18,6 @@ export default function PDFReadingView() {
   const [docError, setDocError] = useState("");
 
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [simplified, setSimplified] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
 
@@ -56,9 +55,12 @@ export default function PDFReadingView() {
   }, []);
 
   const visibleText = useMemo(() => {
-    if (!doc) return "";
-    return simplified ? doc.adapted_text : doc.original_text;
-  }, [doc, simplified]);
+    const raw = doc?.adapted_text ?? "";
+    return raw
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/^\*+\s*/gm, "- ");
+  }, [doc]);
 
   const paragraphs = useMemo(() => visibleText.split(/\n\n+/).filter(Boolean), [visibleText]);
 
@@ -85,12 +87,6 @@ export default function PDFReadingView() {
 
   function handleRateChange(rate: SpeechRate) {
     setSpeechRate(rate);
-  }
-
-  function handleToggleSimplified() {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setSimplified((current) => !current);
   }
 
   if (loadingDoc) {
@@ -154,10 +150,8 @@ export default function PDFReadingView() {
         <ReadingToolbar
           isPlaying={isPlaying}
           speechRate={speechRate}
-          simplified={simplified}
           onTogglePlayback={handleTogglePlayback}
           onRateChange={handleRateChange}
-          onToggleSimplified={handleToggleSimplified}
         />
 
         <article className="relative overflow-hidden rounded-xl border border-[#d7dce4] bg-white px-[30px] py-[28px] shadow-[0_8px_18px_rgba(15,23,42,0.13)] sm:px-[30px]">

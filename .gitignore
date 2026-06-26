@@ -14,6 +14,11 @@ frontend/dist/
 frontend/.env
 frontend/.env.local
 
+# Agent / tooling artifacts
+.superpowers/
+.playwright-mcp/
+*.png
+
 # Backend
 backend/.env
 backend/__pycache__/

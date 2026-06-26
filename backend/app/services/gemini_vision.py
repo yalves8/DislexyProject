@@ -35,13 +35,15 @@ TEXT_ADAPT_PROMPT = """Você é um assistente para pessoas com dislexia.
 Reescreva o texto a seguir de forma acessível:
 - Frases curtas (máximo 12 palavras cada)
 - Palavras simples e do dia a dia
-- Organize em tópicos com bullet points quando aplicável
+- Organize em tópicos com marcadores usando traço (-) quando aplicável
 - Preserve o sentido original
+- NÃO use asteriscos, markdown, negrito ou qualquer símbolo de formatação
+- Use apenas texto simples e traços (-) para listas
 
-**Texto Original:**
+Texto Original:
 {text}
 
-**Versão Adaptada:**
+Versão Adaptada:
 """
 
 def adapt_text(text: str, api_key: str) -> str:

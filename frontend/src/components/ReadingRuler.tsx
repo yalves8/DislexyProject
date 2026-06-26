@@ -4,21 +4,24 @@ interface Props {
   enabled: boolean;
 }
 
+const STRIP_HEIGHT = 36;
+
 export default function ReadingRuler({ enabled }: Props) {
-  const [top, setTop] = useState(120);
+  const [top, setTop] = useState(80);
   const [dragging, setDragging] = useState(false);
 
   if (!enabled) return null;
 
   function updatePosition(clientY: number, currentTarget: HTMLDivElement) {
     const bounds = currentTarget.getBoundingClientRect();
-    const nextTop = Math.max(0, Math.min(clientY - bounds.top - 16, bounds.height - 32));
-    setTop(nextTop);
+    const next = Math.max(0, Math.min(clientY - bounds.top - STRIP_HEIGHT / 2, bounds.height - STRIP_HEIGHT));
+    setTop(next);
   }
 
   return (
     <div
-      className="absolute inset-0 z-10 cursor-ns-resize"
+      className="absolute inset-0 z-10 overflow-hidden"
+      style={{ cursor: dragging ? "grabbing" : "ns-resize" }}
       onMouseMove={(event) => updatePosition(event.clientY, event.currentTarget)}
       onPointerMove={(event) => {
         if (dragging) updatePosition(event.clientY, event.currentTarget);
@@ -26,16 +29,23 @@ export default function ReadingRuler({ enabled }: Props) {
       onPointerUp={() => setDragging(false)}
       onPointerLeave={() => setDragging(false)}
     >
+      {/* everything above: fully visible — no overlay */}
+
+      {/* reading strip: clear window for the current line */}
       <div
-        className="absolute left-0 right-0 flex h-11 items-center justify-center border-y border-[#f4c400] bg-[#fff1a6]/45 text-[11px] font-medium text-[#9b9481] shadow-[0_0_18px_rgba(250,204,21,0.28)] backdrop-blur-[2px]"
-        style={{ top }}
+        className="absolute inset-x-0 border-b-2 border-[#f4c400] bg-[#fffde7]/30"
+        style={{ top, height: STRIP_HEIGHT }}
         onPointerDown={(event) => {
           setDragging(true);
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
-      >
-        ← Arraste para mover →
-      </div>
+      />
+
+      {/* everything below: blurred — not yet read */}
+      <div
+        className="absolute inset-x-0 bottom-0 backdrop-blur-[3px] bg-white/20"
+        style={{ top: top + STRIP_HEIGHT }}
+      />
     </div>
   );
 }
