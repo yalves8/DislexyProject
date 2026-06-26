@@ -7,7 +7,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(index=True, unique=True)
     password_hash: str
-    role: str  # "student" | "teacher"
+    role: str = Field(default="user")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -17,8 +17,3 @@ class StudentSettings(SQLModel, table=True):
     font_size: int = Field(default=18)
     overlay_color: str = Field(default="#FFF3CD")
     ruler_enabled: bool = Field(default=True)
-
-
-class TeacherStudentLink(SQLModel, table=True):
-    teacher_id: int = Field(foreign_key="user.id", primary_key=True)
-    student_id: int = Field(foreign_key="user.id", primary_key=True)

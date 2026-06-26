@@ -17,6 +17,7 @@ def create_db_and_tables() -> None:
     # Importar models aqui garante que as tabelas sejam registradas no metadata
     import app.models.user  # noqa: F401
     import app.models.activity  # noqa: F401
+    import app.models.pdf_document  # noqa: F401
     SQLModel.metadata.create_all(engine)
 
 
