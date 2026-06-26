@@ -4,9 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
-const FIRST_LOGIN_KEY = (username: string) =>
-  `dislexy_first_login_done_${username}`;
-
 export default function RegisterPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
