@@ -12,6 +12,9 @@ from app.services.gemini_vision import adapt_text
 router = APIRouter(prefix="/pdfs", tags=["pdfs"])
 
 API_KEY = os.getenv("GEMINI_API_KEY", "")
+if not API_KEY:
+    import warnings
+    warnings.warn("GEMINI_API_KEY não configurada — uploads de PDF falharão")
 
 
 @router.post("/upload", response_model=PDFDocument)
@@ -29,7 +32,10 @@ def upload_pdf(
     if not original_text.strip():
         raise HTTPException(status_code=422, detail="Não foi possível extrair texto do PDF")
 
-    adapted_text = adapt_text(original_text, API_KEY)
+    try:
+        adapted_text = adapt_text(original_text, API_KEY)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Falha ao adaptar texto: {exc}") from exc
 
     doc = PDFDocument(
         user_id=current_user.id,

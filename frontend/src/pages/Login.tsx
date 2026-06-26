@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import ReadingSettings from "../components/ReadingSettings";
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 const DEFAULT_SETTINGS = {
   font_preference: "OpenDyslexic",
   font_size: 18,
@@ -21,7 +23,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   async function doLogin(): Promise<void> {
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch(`${API_BASE}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
@@ -37,7 +39,7 @@ export default function Login() {
     login({ username: data.username, token: data.access_token });
 
     // Salva as configurações de leitura
-    await fetch("/api/students/me/settings", {
+    await fetch(`${API_BASE}/students/me/settings`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -68,7 +70,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
+      const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
