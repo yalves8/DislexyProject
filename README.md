@@ -1,178 +1,154 @@
-# DilexyProject — Portal de Leitura para Estudantes com Dislexia
+# DilexyProject
 
-Plataforma web que adapta exercícios escolares para crianças com dislexia, com perfis distintos para **alunos** e **professores**.
+Aplicação web para organizar e ler PDFs com foco em acessibilidade. O projeto permite autenticação de usuários, envio de arquivos PDF, extração de texto, adaptação do conteúdo com Gemini e leitura em uma interface com ajustes visuais e régua de leitura.
 
-## O Problema
+## O que o projeto faz
 
-A dislexia afeta entre 5% e 17% da população mundial. Enunciados longos, textos densos e fontes inadequadas tornam o aprendizado frustrante — não por falta de inteligência, mas por uma forma diferente de processar informação. Estimam-se 2,3 a 7 milhões de alunos brasileiros afetados.
+- Cadastro e login de usuários com JWT.
+- Biblioteca pessoal de PDFs, com listagem, upload, visualização e exclusão.
+- Extração do texto do PDF no backend.
+- Adaptação do texto com Gemini quando a chave de API está configurada.
+- Tela de leitura com fonte configurável, tamanho de texto, cor de sobreposição, régua de leitura e controle de leitura em voz alta pelo navegador.
+- Interface frontend com suporte a PWA.
 
-## Solução
+## Stack
 
-Um portal onde o professor vincula alunos e acompanha o progresso, e o aluno acessa um espaço personalizado que:
-
-1. **Adapta exercícios** — envia foto do enunciado, recebe versão com frases curtas, vocabulário simples e bullet points (Gemini Vision)
-2. **Responde dúvidas** — tutor gentil contextualizado ao conteúdo adaptado (LlamaIndex RAG + Gemini)
-3. **Personaliza a leitura** — fonte amigável (OpenDyslexic, Comic Sans, Arial), régua de foco, cor de sobreposição e tamanho de fonte configuráveis
-
----
-
-## Arquitetura
-
-```
-DilexyProject/          ← monorepo
-├── frontend/           ← React 19 + TypeScript + Vite + Tailwind CSS v4
-│   └── src/
-│       ├── pages/      ← LoginSelect, StudentLogin, StudentPortal, TeacherLogin, TeacherDashboard
-│       ├── components/ ← ReadingSettings, ActivityCard
-│       ├── contexts/   ← AuthContext (JWT + role)
-│       └── services/   ← api.ts (cliente HTTP)
-│
-├── backend/            ← FastAPI + SQLModel + SQLite
-│   └── app/
-│       ├── routers/    ← auth, students, teacher
-│       ├── models/     ← User, StudentSettings, TeacherStudentLink, Activity
-│       ├── services/   ← gemini_vision, rag (LlamaIndex)
-│       ├── auth.py     ← JWT utilities + role guard
-│       └── database.py ← engine SQLite + get_session
-│
-└── plan_project.md     ← planejamento e issues do projeto
-```
-
-### Stack
-
-| Camada | Tecnologia |
-|--------|------------|
-| Frontend | React 19, TypeScript, Vite 6, Tailwind CSS v4, React Router v7 |
+| Camada | Tecnologias |
+|--------|-------------|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, React Router v7 |
 | Backend | FastAPI, SQLModel, SQLite |
-| Auth | JWT (python-jose) + bcrypt |
-| IA — Visão | Google Gemini Vision (gemini-3-flash-preview) |
-| IA — RAG | LlamaIndex + Gemini Embeddings |
+| Autenticação | JWT, bcrypt |
+| PDF | PyMuPDF |
+| IA | Google Gemini |
 
-### Fluxo de dados
+## Estrutura
 
+```text
+DislexyProject/
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── auth.py
+│   │   ├── database.py
+│   │   ├── models/
+│   │   ├── routers/
+│   │   └── services/
+│   ├── seed.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── pages/
+│   │   ├── components/
+│   │   ├── contexts/
+│   │   ├── hooks/
+│   │   └── services/
+│   ├── package.json
+│   └── vite.config.ts
+└── README.md
 ```
-[Aluno faz upload da imagem]
-        ↓
-[FastAPI → Gemini Vision] → extrai texto + reescreve para dislexia
-        ↓
-[Atividade salva no banco (SQLite)]
-        ↓
-[Aluno faz pergunta ao tutor]
-        ↓
-[LlamaIndex RAG → Gemini] → resposta simples e encorajadora
-        ↓
-[Professor acessa dashboard → vê todas as atividades do aluno]
-```
 
----
-
-## Pré-requisitos
+## Requisitos
 
 - Python 3.11+
 - Node.js 18+
-- Chave de API do Google Gemini ([obter aqui](https://aistudio.google.com/app/apikey))
+- npm
+- Chave `GEMINI_API_KEY` para adaptação de PDF via Gemini
 
----
+## Variáveis de ambiente
 
-## Instalação e execução
+### Backend
 
-### 1. Clone e configure variáveis de ambiente
+Crie `backend/.env` com algo assim:
+
+```env
+GEMINI_API_KEY=sua_chave_aqui
+SECRET_KEY=troque_por_uma_chave_secreta_longa
+# DATABASE_URL=sqlite:///./dilexy.db
+```
+
+### Frontend
+
+Em desenvolvimento, pode deixar `VITE_API_URL` vazio para usar o proxy do Vite. Em produção, aponte para o backend, sem o sufixo `/api`.
+
+```env
+# VITE_API_URL=http://localhost:8000
+```
+
+## Como rodar localmente
+
+### Backend
 
 ```bash
-git clone <url-do-repo>
-cd DilexyProject
-
-cp .env.example .env
-# Edite o .env:
-#   GEMINI_API_KEY=sua_chave
-#   SECRET_KEY=chave_jwt_longa_e_segura
-#   DATABASE_URL=sqlite:///./dilexy.db
-```
-
-### 2. Backend
-
-```powershell
-# ⚠️ Todos os comandos abaixo devem ser executados dentro da pasta backend/
 cd backend
-
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # Linux/Mac
-
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Criar usuários de teste (rodar uma vez)
 python seed.py
-# → professor / senha123
-# → aluno     / senha123
-
-# Iniciar servidor  ← rodar de dentro de backend/
-uvicorn app.main:app --reload
-# API disponível em: http://localhost:8000
-# Swagger docs em:   http://localhost:8000/docs
+uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 3. Frontend
+O backend fica disponível em `http://localhost:8000` e a documentação em `http://localhost:8000/docs`.
+
+### Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
-# App disponível em: http://localhost:5173
 ```
 
----
+O frontend fica disponível em `http://localhost:5173`.
 
-## API — Endpoints
+### Build de produção do frontend
 
-### Auth
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| POST | `/auth/register` | Cria conta de aluno ou professor |
-| POST | `/auth/login` | Autentica e retorna JWT |
-
-### Aluno (requer JWT com role=student)
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/students/me/settings` | Configurações de leitura do aluno |
-| PUT | `/students/me/settings` | Atualiza configurações de leitura |
-| POST | `/students/adapt-image` | Envia imagem → retorna texto adaptado |
-| POST | `/students/ask` | Pergunta ao tutor RAG |
-| POST | `/students/activities` | Salva atividade adaptada |
-| GET | `/students/activities` | Lista atividades do aluno |
-
-### Professor (requer JWT com role=teacher)
-| Método | Rota | Descrição |
-|--------|------|-----------|
-| GET | `/teacher/students` | Lista alunos vinculados |
-| GET | `/teacher/students/{id}/activities` | Atividades de um aluno específico |
-
-Documentação interativa completa: **http://localhost:8000/docs**
-
----
-
-## Perfis e fluxo de telas
-
-```
-/ → Portal de Leitura (escolha de perfil)
-      ├── Sou Aluno     → /student/login  → /student/portal
-      └── Sou Professor → /teacher/login  → /teacher/dashboard
+```bash
+cd frontend
+npm run build
 ```
 
-**Credenciais de teste (após rodar `seed.py`):**
-```
-Aluno:     username=aluno      senha=senha123
-Professor: username=professor  senha=senha123
-```
+Se o diretório `frontend/dist` existir, o FastAPI também consegue servir os arquivos estáticos do frontend.
 
----
+## Credenciais de teste
 
-## Estrutura de branches
+Depois de rodar `python seed.py`, ficam disponíveis estes usuários:
 
-```
-main          ← código estável (protegido, exige PR + 1 aprovação)
-  └── develop ← integração contínua
-        └── feat/* / fix/* / chore/*
-```
+- `professor` / `senha123`
+- `aluno` / `senha123`
 
-Veja `plan_project.md` para o planejamento completo, issues e workflow do time.
+## Rotas da API
+
+Todas as rotas abaixo estão expostas com o prefixo `/api`.
+
+### Autenticação
+
+- `POST /api/auth/register` - cria uma conta
+- `POST /api/auth/login` - autentica e retorna JWT
+
+### Configurações de leitura
+
+- `GET /api/students/me/settings` - busca as preferências atuais
+- `PUT /api/students/me/settings` - atualiza as preferências
+
+### PDFs
+
+- `POST /api/pdfs/upload` - envia um PDF e salva o texto extraído/adaptado
+- `GET /api/pdfs` - lista os PDFs do usuário logado
+- `GET /api/pdfs/{id}` - busca um PDF específico
+- `DELETE /api/pdfs/{id}` - remove um PDF
+
+### Saúde
+
+- `GET /health` - status do backend
+
+## Fluxo da interface
+
+- `/login` - tela de login
+- `/register` - cadastro
+- `/library` - biblioteca de PDFs
+- `/library/:pdfId` - leitura do PDF selecionado
+
+## Observações
+
+- O app usa áudio do navegador para leitura em voz alta.
+- As preferências de leitura são salvas por usuário logado.
+- O texto adaptado depende da disponibilidade da `GEMINI_API_KEY`; sem ela, o backend usa o texto original como fallback.
