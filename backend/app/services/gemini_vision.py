@@ -26,7 +26,7 @@ def adapt_image(image_bytes: bytes, api_key: str) -> str:
     client = genai.Client(api_key=api_key)
     img = Image.open(io.BytesIO(image_bytes))
     response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-2.5-flash",
         contents=[ADAPT_PROMPT, img],
     )
     return response.text
@@ -47,7 +47,7 @@ Reescreva o texto a seguir de forma acessível:
 def adapt_text(text: str, api_key: str) -> str:
     client = genai.Client(api_key=api_key)
     response = client.models.generate_content(
-        model="gemini-2.5-flash-lite",
+        model="gemini-2.5-flash",
         contents=TEXT_ADAPT_PROMPT.format(text=text),
     )
     return response.text
