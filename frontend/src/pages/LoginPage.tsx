@@ -37,6 +37,7 @@ export default function LoginPage() {
       login({ username: data.username, token: data.access_token });
 
       const isFirst = !localStorage.getItem(FIRST_LOGIN_KEY(data.username));
+      if (isFirst) localStorage.setItem(FIRST_LOGIN_KEY(data.username), "1");
       navigate("/library", { state: { firstLogin: isFirst } });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao entrar");
@@ -53,7 +54,6 @@ export default function LoginPage() {
       }}
     >
       <div className="bg-white/80 backdrop-blur-md rounded-3xl px-8 py-10 w-full max-w-sm shadow-[0_8px_32px_rgba(16,185,129,0.15)] border border-white/85">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-[0_4px_14px_rgba(16,185,129,0.35)]"
@@ -65,7 +65,6 @@ export default function LoginPage() {
           <p className="text-sm font-semibold text-[#047857]">Sua leitura acessível</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-[#065f46]">USUÁRIO</label>
