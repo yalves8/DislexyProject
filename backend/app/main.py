@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from app.database import create_db_and_tables
-from app.routers import auth, students, teacher
+from app.routers import auth, students, pdfs
 
 
 @asynccontextmanager
@@ -20,7 +20,7 @@ app = FastAPI(title="DilexyProject API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +28,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(students.router)
-app.include_router(teacher.router)
+app.include_router(pdfs.router)
 
 
 @app.get("/health")

@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class RegisterRequest(BaseModel):
     username: str
     password: str
-    role: str  # "student" | "teacher"
+    role: str = "user"
 
 
 class LoginRequest(BaseModel):
@@ -31,22 +31,18 @@ class TokenResponse(BaseModel):
     "/register",
     status_code=status.HTTP_201_CREATED,
     summary="Criar conta",
-    description="Cria uma nova conta de aluno ou professor. Para `role` use `'student'` ou `'teacher'`.",
+    description="Cria uma nova conta de usuário.",
 )
 def register(body: RegisterRequest, session: Session = Depends(get_session)):
-    if body.role not in ("student", "teacher"):
-        raise HTTPException(status_code=400, detail="role deve ser 'student' ou 'teacher'")
-
     existing = session.exec(select(User).where(User.username == body.username)).first()
     if existing:
         raise HTTPException(status_code=409, detail="Usuario ja existe")
 
-    user = User(username=body.username, password_hash=hash_password(body.password), role=body.role)
+    user = User(username=body.username, password_hash=hash_password(body.password), role="user")
     session.add(user)
     session.flush()
 
-    if body.role == "student":
-        session.add(StudentSettings(user_id=user.id))
+    session.add(StudentSettings(user_id=user.id))
 
     session.commit()
     return {"message": "Usuario criado com sucesso"}
