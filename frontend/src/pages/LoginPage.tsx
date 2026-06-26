@@ -4,9 +4,6 @@ import { useAuth } from "../contexts/AuthContext";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
-const FIRST_LOGIN_KEY = (username: string) =>
-  `dislexy_first_login_done_${username}`;
-
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -35,10 +32,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       login({ username: data.username, token: data.access_token });
-
-      const isFirst = !localStorage.getItem(FIRST_LOGIN_KEY(data.username));
-      if (isFirst) localStorage.setItem(FIRST_LOGIN_KEY(data.username), "1");
-      navigate("/library", { state: { firstLogin: isFirst } });
+      navigate("/library");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao entrar");
     } finally {

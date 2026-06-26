@@ -52,7 +52,7 @@ export default function RegisterPage() {
       login({ username: data.username, token: data.access_token });
 
       // sempre primeiro login após cadastro
-      navigate("/library", { state: { firstLogin: true } });
+      navigate("/library");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao cadastrar");
     } finally {

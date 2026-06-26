@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { uploadPDF, listPDFs, deletePDF, PDFDocument } from "../services/pdfApi";
 import SettingsModal from "../components/SettingsModal";
+
+const FIRST_LOGIN_KEY = (username: string) =>
+  `dislexy_first_login_done_${username}`;
 
 export default function PDFLibrary() {
   const { user } = useAuth();
@@ -13,9 +16,8 @@ export default function PDFLibrary() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
-  const location = useLocation();
   const [showSettings, setShowSettings] = useState(
-    !!(location.state as { firstLogin?: boolean } | null)?.firstLogin
+    user ? !localStorage.getItem(FIRST_LOGIN_KEY(user.username)) : false
   );
 
   const fileInputRef = useRef<HTMLInputElement>(null);
