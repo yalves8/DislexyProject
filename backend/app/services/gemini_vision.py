@@ -23,9 +23,29 @@ Formato obrigatório da resposta:
 
 def adapt_image(image_bytes: bytes, api_key: str) -> str:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-3-flash-preview")
+    model = genai.GenerativeModel("gemini-2.0-flash")
     img = Image.open(io.BytesIO(image_bytes))
     response = model.generate_content([ADAPT_PROMPT, img])
+    return response.text
+
+TEXT_ADAPT_PROMPT = """Você é um assistente para pessoas com dislexia.
+Reescreva o texto a seguir de forma acessível:
+- Frases curtas (máximo 12 palavras cada)
+- Palavras simples e do dia a dia
+- Organize em tópicos com bullet points quando aplicável
+- Preserve o sentido original
+
+**Texto Original:**
+{text}
+
+**Versão Adaptada:**
+"""
+
+def adapt_text(text: str, api_key: str) -> str:
+    """Adapta texto puro para leitura por pessoas com dislexia."""
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-2.0-flash")
+    response = model.generate_content(TEXT_ADAPT_PROMPT.format(text=text))
     return response.text
 
 def parse_result(text: str) -> tuple[str, str]:
