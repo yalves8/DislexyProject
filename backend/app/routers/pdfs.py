@@ -34,8 +34,8 @@ def upload_pdf(
 
     try:
         adapted_text = adapt_text(original_text, API_KEY)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Falha ao adaptar texto: {exc}") from exc
+    except Exception:
+        adapted_text = original_text  # fallback: usa texto original se Gemini indisponível
 
     doc = PDFDocument(
         user_id=current_user.id,
