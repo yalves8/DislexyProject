@@ -30,7 +30,7 @@ export default function Login() {
     });
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       throw new Error(data.detail || "Credenciais inválidas");
     }
 
@@ -77,7 +77,7 @@ export default function Login() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || "Erro ao cadastrar");
       }
 
