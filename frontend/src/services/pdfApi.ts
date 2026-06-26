@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 export interface PDFDocument {
   id: number
@@ -19,7 +19,7 @@ function authHeaders(token: string) {
 export async function uploadPDF(file: File, token: string): Promise<PDFDocument> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch(`${BASE_URL}/pdfs/upload`, {
+  const res = await fetch(`${API_BASE}/pdfs/upload`, {
     method: 'POST',
     headers: authHeaders(token),
     body: form,
@@ -32,7 +32,7 @@ export async function uploadPDF(file: File, token: string): Promise<PDFDocument>
 }
 
 export async function listPDFs(token: string): Promise<PDFDocument[]> {
-  const res = await fetch(`${BASE_URL}/pdfs`, {
+  const res = await fetch(`${API_BASE}/pdfs`, {
     headers: authHeaders(token),
   })
   if (!res.ok) throw new Error('Erro ao carregar biblioteca')
@@ -40,7 +40,7 @@ export async function listPDFs(token: string): Promise<PDFDocument[]> {
 }
 
 export async function getPDF(id: number, token: string): Promise<PDFDocument> {
-  const res = await fetch(`${BASE_URL}/pdfs/${id}`, {
+  const res = await fetch(`${API_BASE}/pdfs/${id}`, {
     headers: authHeaders(token),
   })
   if (!res.ok) throw new Error('PDF não encontrado')
@@ -48,7 +48,7 @@ export async function getPDF(id: number, token: string): Promise<PDFDocument> {
 }
 
 export async function deletePDF(id: number, token: string): Promise<void> {
-  const res = await fetch(`${BASE_URL}/pdfs/${id}`, {
+  const res = await fetch(`${API_BASE}/pdfs/${id}`, {
     method: 'DELETE',
     headers: authHeaders(token),
   })

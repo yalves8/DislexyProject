@@ -1,8 +1,8 @@
 // Cliente HTTP para o backend FastAPI
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export async function post(path: string, body: unknown) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -11,7 +11,7 @@ export async function post(path: string, body: unknown) {
 }
 
 export async function get(path: string, token?: string) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   return res.json();
