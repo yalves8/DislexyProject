@@ -23,7 +23,7 @@ Formato obrigatório da resposta:
 
 def adapt_image(image_bytes: bytes, api_key: str) -> str:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash-lite")
     img = Image.open(io.BytesIO(image_bytes))
     response = model.generate_content([ADAPT_PROMPT, img])
     return response.text
@@ -44,7 +44,7 @@ Reescreva o texto a seguir de forma acessível:
 def adapt_text(text: str, api_key: str) -> str:
     """Adapta texto puro para leitura por pessoas com dislexia."""
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash-lite")
     response = model.generate_content(TEXT_ADAPT_PROMPT.format(text=text))
     return response.text
 
