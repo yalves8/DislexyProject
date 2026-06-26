@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Login from "./pages/Login";
+import LoginPage from "./pages/LoginPage";
 import PDFLibrary from "./pages/PDFLibrary";
 import PDFReadingView from "./pages/PDFReadingView";
 
@@ -16,7 +16,7 @@ export default function App() {
       />
       <Route
         path="/login"
-        element={user ? <Navigate to="/library" replace /> : <Login />}
+        element={user ? <Navigate to="/library" replace /> : <LoginPage />}
       />
       <Route
         path="/library"
