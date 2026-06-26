@@ -29,7 +29,8 @@ export function useReadingSettings() {
       setError("");
 
       try {
-        const res = await fetch("/api/students/me/settings", {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${baseUrl}/api/students/me/settings`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
 
@@ -61,7 +62,8 @@ export function useReadingSettings() {
     setError("");
 
     try {
-      const res = await fetch("/api/students/me/settings", {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${baseUrl}/api/students/me/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
