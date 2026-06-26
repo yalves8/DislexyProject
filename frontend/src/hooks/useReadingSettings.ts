@@ -9,6 +9,8 @@ export const DEFAULT_READING_SETTINGS: ReadingSettingsValue = {
   ruler_enabled: true,
 };
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api'
+
 export function useReadingSettings() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<ReadingSettingsValue>(DEFAULT_READING_SETTINGS);
@@ -29,7 +31,6 @@ export function useReadingSettings() {
       setError("");
 
       try {
-        const API_BASE = import.meta.env.VITE_API_URL || '/api';
         const res = await fetch(`${API_BASE}/students/me/settings`, {
           headers: { Authorization: `Bearer ${user.token}` },
         });
@@ -62,7 +63,6 @@ export function useReadingSettings() {
     setError("");
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '/api';
       const res = await fetch(`${API_BASE}/students/me/settings`, {
         method: "PUT",
         headers: {
