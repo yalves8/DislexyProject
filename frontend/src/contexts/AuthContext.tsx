@@ -1,10 +1,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
 
-export type Role = "student" | "teacher";
-
 interface AuthUser {
   username: string;
-  role: Role;
   token: string;
 }
 
