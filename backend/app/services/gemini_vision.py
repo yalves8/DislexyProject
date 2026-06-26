@@ -1,4 +1,5 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import io
 from PIL import Image
 
@@ -22,10 +23,12 @@ Formato obrigatório da resposta:
 """
 
 def adapt_image(image_bytes: bytes, api_key: str) -> str:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.5-flash-lite")
+    client = genai.Client(api_key=api_key)
     img = Image.open(io.BytesIO(image_bytes))
-    response = model.generate_content([ADAPT_PROMPT, img])
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=[ADAPT_PROMPT, img],
+    )
     return response.text
 
 TEXT_ADAPT_PROMPT = """Você é um assistente para pessoas com dislexia.
@@ -42,14 +45,14 @@ Reescreva o texto a seguir de forma acessível:
 """
 
 def adapt_text(text: str, api_key: str) -> str:
-    """Adapta texto puro para leitura por pessoas com dislexia."""
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.5-flash-lite")
-    response = model.generate_content(TEXT_ADAPT_PROMPT.format(text=text))
+    client = genai.Client(api_key=api_key)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash-lite",
+        contents=TEXT_ADAPT_PROMPT.format(text=text),
+    )
     return response.text
 
 def parse_result(text: str) -> tuple[str, str]:
-    # Separa "Texto Original" de "Versão Adaptada" usando os marcadores do prompt
     original = ""
     adapted = ""
     if "**Versão Adaptada:**" in text:
