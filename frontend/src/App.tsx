@@ -2,9 +2,6 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginSelect from "./pages/LoginSelect";
-import Login from "./pages/Login";
-import PDFLibrary from "./pages/PDFLibrary";
-import PDFReadingView from "./pages/PDFReadingView";
 import StudentLogin from "./pages/StudentLogin";
 import StudentLibrary from "./pages/StudentLibrary";
 import StudentPortalLegacy from "./pages/StudentPortalLegacy";
@@ -69,28 +66,6 @@ export default function App() {
         element={
           <ProtectedRoute role="teacher">
             <TeacherDashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* PDF Library routes */}
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/library" replace /> : <Login />}
-      />
-      <Route
-        path="/library"
-        element={
-          <ProtectedRoute>
-            <PDFLibrary />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/library/:pdfId"
-        element={
-          <ProtectedRoute>
-            <PDFReadingView />
           </ProtectedRoute>
         }
       />
