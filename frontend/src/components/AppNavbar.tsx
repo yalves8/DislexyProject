@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AppLogo from "./AppLogo";
 
@@ -10,17 +10,23 @@ interface Props {
 
 export default function AppNavbar({ onAccessibility, showDesktopAccessibility = false }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function handleLogout() {
+    if (!user) {
+      navigate("/login", { state: { from: location.pathname } });
+      return;
+    }
+
     logout();
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   }
 
   function goToLibrary() {
     setSidebarOpen(false);
-    navigate("/library");
+    navigate("/");
   }
 
   function openAccessibility() {
@@ -28,21 +34,41 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
     onAccessibility();
   }
 
+  function openHistory() {
+    setSidebarOpen(false);
+    navigate("/historico");
+  }
+
   return (
     <>
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
+      <header className="border-b border-gray-200 bg-white px-6 py-3">
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4">
           <button
             type="button"
             onClick={goToLibrary}
-            className="flex items-center gap-2 text-left font-bold text-gray-800"
+            className="flex min-w-0 items-center text-left font-bold text-gray-800"
+            aria-label="Ir para o leitor Luz"
           >
             <AppLogo />
-            Leitor Dislexy
           </button>
 
           <nav className="hidden items-center gap-4 md:flex">
-            <span className="text-sm text-gray-500">Olá, {user?.username}</span>
+            <button
+              type="button"
+              onClick={goToLibrary}
+              className="text-sm font-medium text-[#061c44] transition hover:text-blue-700"
+            >
+              Leitor
+            </button>
+            {user && (
+              <button
+                type="button"
+                onClick={openHistory}
+                className="text-sm font-medium text-[#061c44] transition hover:text-blue-700"
+              >
+                Histórico
+              </button>
+            )}
             {showDesktopAccessibility && (
               <button
                 type="button"
@@ -52,8 +78,13 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
                 Acessibilidade
               </button>
             )}
-            <button type="button" onClick={handleLogout} className="text-sm text-red-500 transition hover:underline">
-              Sair
+            {user && <span className="text-sm text-gray-500">{user.username}</span>}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className={`text-sm transition hover:underline ${user ? "text-red-500" : "font-medium text-[#061c44]"}`}
+            >
+              {user ? "Sair" : "Entrar"}
             </button>
           </nav>
 
@@ -80,8 +111,10 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
           <aside className="relative flex h-full w-72 flex-col gap-5 bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-bold text-[#061c44]">Leitor Dislexy</p>
-                <p className="mt-1 text-sm text-gray-500">Olá, {user?.username}</p>
+                <div className="flex items-center">
+                  <AppLogo />
+                </div>
+                {user && <p className="mt-1 text-sm text-gray-500">{user.username}</p>}
               </div>
               <button
                 type="button"
@@ -100,8 +133,17 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
               onClick={goToLibrary}
               className="rounded-lg px-3 py-3 text-left text-sm font-semibold text-[#061c44] hover:bg-gray-50"
             >
-              Minha Biblioteca
+              Leitor
             </button>
+            {user && (
+              <button
+                type="button"
+                onClick={openHistory}
+                className="rounded-lg px-3 py-3 text-left text-sm font-semibold text-[#061c44] hover:bg-gray-50"
+              >
+                Histórico
+              </button>
+            )}
             <button
               type="button"
               onClick={openAccessibility}
@@ -113,9 +155,11 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             <button
               type="button"
               onClick={handleLogout}
-              className="mt-auto rounded-lg px-3 py-3 text-left text-sm font-semibold text-red-500 hover:bg-red-50"
+              className={`mt-auto rounded-lg px-3 py-3 text-left text-sm font-semibold ${
+                user ? "text-red-500 hover:bg-red-50" : "text-[#061c44] hover:bg-gray-50"
+              }`}
             >
-              Sair
+              {user ? "Sair" : "Entrar"}
             </button>
           </aside>
         </div>

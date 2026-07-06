@@ -1,0 +1,37 @@
+---
+description: Contexto central do DilexyProject — monorepo develop (React + FastAPI)
+alwaysApply: true
+---
+
+# DilexyProject (branch develop)
+
+Portal de leitura para dislexia: professor acompanha alunos; aluno adapta exercícios (Gemini Vision), personaliza leitura e usa tutor RAG (LlamaIndex).
+
+## Monorepo
+
+- `frontend/` — React 19 + TS + Vite + Tailwind v4 + React Router v7
+- `backend/` — FastAPI + SQLModel + SQLite + JWT + Gemini
+- `plan_project.md` — planejamento e workflow
+
+> `main` = MVP Streamlit legado. `develop` = arquitetura web atual. Não usar `utils/` nem `app.py` — IA em `backend/app/services/`.
+
+## Regras essenciais
+
+- Público-alvo: crianças ~10 anos com dislexia — linguagem simples, frases curtas, tom encorajador
+- Segredos só via `.env` (`GEMINI_API_KEY`, `SECRET_KEY`); nunca commitar `.env`
+- Diffs mínimos; não refatorar fora do escopo
+- Sem testes automatizados — validar manualmente (backend + frontend rodando)
+
+## Comandos
+
+```powershell
+# Backend (dentro de backend/)
+uvicorn app.main:app --reload    # http://localhost:8000
+
+# Frontend (dentro de frontend/)
+npm run dev                      # http://localhost:5173
+```
+
+Credenciais de teste (após `python seed.py`): `aluno`/`professor` — senha `senha123`.
+
+Consulte `AGENTS.md` na raiz, `backend/AGENTS.md` e `frontend/AGENTS.md`.

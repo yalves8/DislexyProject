@@ -12,6 +12,9 @@ const DEFAULT: ReadingSettingsValue = {
   font_size: 18,
   overlay_color: "#FFF3CD",
   ruler_enabled: true,
+  line_height: 1.8,
+  letter_spacing: 0.5,
+  high_contrast: false,
 };
 
 interface Props {
@@ -37,7 +40,12 @@ export default function SettingsModal({ open, onClose }: Props) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${user.token}`,
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({
+          font_preference: settings.font_preference,
+          font_size: settings.font_size,
+          overlay_color: settings.overlay_color,
+          ruler_enabled: settings.ruler_enabled,
+        }),
       });
     } finally {
       setSaving(false);
@@ -48,13 +56,10 @@ export default function SettingsModal({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      {/* Overlay — não fecha ao clicar */}
       <div className="absolute inset-0 bg-[#061c44]/55 backdrop-blur-sm" />
 
-      {/* Card */}
-      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-sm px-6 py-7">
+      <div className="relative z-10 w-full max-w-sm rounded-lg bg-white px-6 py-7 shadow-2xl">
         <div className="text-center mb-6">
-          <div className="text-3xl mb-2">⚙️</div>
           <h2 className="text-lg font-extrabold text-[#064e3b]">Configure sua leitura</h2>
           <p className="text-sm text-gray-500">Personalize antes de começar</p>
         </div>

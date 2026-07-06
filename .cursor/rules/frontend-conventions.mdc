@@ -1,0 +1,74 @@
+---
+description: Convenções React/TypeScript para frontend do DilexyProject
+globs: frontend/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend — React + TypeScript
+
+Aplicar em `frontend/src/`.
+
+## Estrutura
+
+```
+src/
+├── pages/          # Telas (uma por rota principal)
+├── components/     # UI reutilizável (ReadingSettings, ActivityCard, ProtectedRoute)
+├── contexts/       # AuthContext — estado global de auth
+├── services/       # api.ts — helpers HTTP (páginas também usam fetch direto)
+├── App.tsx         # Definição de rotas
+└── main.tsx        # BrowserRouter + AuthProvider
+```
+
+## Rotas
+
+| Path | Componente | Acesso |
+|------|------------|--------|
+| `/` | LoginSelect | Público |
+| `/student/login` | StudentLogin | Público |
+| `/student/portal` | StudentPortal | student |
+| `/teacher/login` | TeacherLogin | Público |
+| `/teacher/dashboard` | TeacherDashboard | teacher |
+
+`ProtectedRoute` redireciona sem JWT ou role incorreta.
+
+## API e proxy
+
+Vite proxy (`vite.config.ts`): `/api` → `http://localhost:8000` (remove prefixo `/api`).
+
+```typescript
+// ✅ Chamadas via proxy em dev
+fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: ... })
+fetch("/api/students/adapt-image", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData })
+
+// api.ts usa BASE_URL direto (http://localhost:8000) — preferir /api/ nas páginas em dev
+```
+
+## Auth
+
+- `AuthContext`: `user` com `{ username, role, token }`, persistido em `localStorage` (`dilexy_auth`)
+- `Role`: `"student" | "teacher"`
+- Header JWT: `Authorization: Bearer <token>`
+
+## Estilo
+
+- Tailwind CSS v4 via `@tailwindcss/vite`
+- Estilos globais em `index.css`
+- Componentes funcionais com hooks; sem class components
+
+## Padrões
+
+```tsx
+// ✅ Tipagem explícita de props
+interface Props { role: Role; children: ReactNode }
+
+// ✅ Estado local na página; auth global no context
+const { user, logout } = useAuth();
+```
+
+## Ao modificar
+
+- Manter UX acessível (fontes dislexia-friendly, contraste, frases curtas na UI)
+- Upload de imagem: `FormData` + `multipart/form-data` (sem Content-Type manual)
+- Após login de aluno, salvar settings via `PUT /students/me/settings`
+- Validar com `npm run dev` + backend rodando; `npm run build` para checar TypeScript

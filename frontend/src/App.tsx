@@ -3,6 +3,7 @@ import { useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import HistoryPage from "./pages/HistoryPage";
 import PDFLibrary from "./pages/PDFLibrary";
 import PDFReadingView from "./pages/PDFReadingView";
 
@@ -11,10 +12,10 @@ export default function App() {
 
   return (
     <Routes>
-      <Route
-        path="/"
-        element={user ? <Navigate to="/library" replace /> : <Navigate to="/login" replace />}
-      />
+      <Route path="/" element={<PDFLibrary />} />
+      <Route path="/open" element={<PDFLibrary />} />
+      <Route path="/library" element={<PDFLibrary />} />
+      <Route path="/historico" element={<HistoryPage />} />
       <Route
         path="/login"
         element={user ? <Navigate to="/library" replace /> : <LoginPage />}
@@ -22,14 +23,6 @@ export default function App() {
       <Route
         path="/register"
         element={user ? <Navigate to="/library" replace /> : <RegisterPage />}
-      />
-      <Route
-        path="/library"
-        element={
-          <ProtectedRoute>
-            <PDFLibrary />
-          </ProtectedRoute>
-        }
       />
       <Route
         path="/library/:pdfId"

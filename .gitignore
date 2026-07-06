@@ -18,6 +18,9 @@ frontend/.env.local
 .superpowers/
 .playwright-mcp/
 *.png
+!frontend/public/brand/luz-logo.png
+!frontend/public/icons/icon-192.png
+!frontend/public/icons/icon-512.png
 
 # Backend
 backend/.env

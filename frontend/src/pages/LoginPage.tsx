@@ -1,17 +1,61 @@
-import { useState, FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useCallback, useState, FormEvent } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import AppLogo from "../components/AppLogo";
+import GoogleSignInButton from "../components/GoogleSignInButton";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTo =
+    typeof location.state === "object" &&
+    location.state !== null &&
+    "from" in location.state &&
+    typeof location.state.from === "string"
+      ? location.state.from
+      : "/library";
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleCredential = useCallback(
+    async (credential: string) => {
+      setError("");
+      setGoogleLoading(true);
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/google`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || "Não foi possível entrar com Google.");
+        }
+
+        const data = await res.json();
+        login({ username: data.username, token: data.access_token });
+        navigate(redirectTo);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Não foi possível entrar com Google.");
+      } finally {
+        setGoogleLoading(false);
+      }
+    },
+    [login, navigate, redirectTo],
+  );
+
+  const handleGoogleError = useCallback((message: string) => {
+    setError(message);
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -32,7 +76,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       login({ username: data.username, token: data.access_token });
-      navigate("/library");
+      navigate(redirectTo);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao entrar");
     } finally {
@@ -49,17 +93,28 @@ export default function LoginPage() {
     >
       <div className="bg-white/80 backdrop-blur-md rounded-3xl px-8 py-10 w-full max-w-sm shadow-[0_8px_32px_rgba(16,185,129,0.15)] border border-white/85">
         <div className="flex flex-col items-center mb-8">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-3 shadow-[0_4px_14px_rgba(16,185,129,0.35)]"
-            style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-          >
-            📖
+          <div className="mb-3 flex h-16 items-center justify-center">
+            <AppLogo />
           </div>
-          <h1 className="text-xl font-extrabold text-[#064e3b]">Leitor Dislexy</h1>
-          <p className="text-sm font-semibold text-[#047857]">Sua leitura acessível</p>
+          <h1 className="text-xl font-extrabold text-[#064e3b]">Entrar</h1>
+          <p className="text-sm font-semibold text-[#047857]">Salve histórico e preferências</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
+          <GoogleSignInButton
+            text="signin_with"
+            onCredential={handleGoogleCredential}
+            onError={handleGoogleError}
+          />
+          {googleLoading && <p className="text-center text-sm font-semibold text-[#047857]">Entrando com Google...</p>}
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs font-bold text-gray-400">ou</span>
+            <div className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-[#065f46]">USUÁRIO</label>
             <input
@@ -89,12 +144,19 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="w-full text-white font-bold py-3 rounded-xl transition-opacity disabled:opacity-60 shadow-[0_4px_14px_rgba(16,185,129,0.30)] mt-1"
             style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
           >
-            {loading ? "Entrando..." : "→ Entrar"}
+            {loading ? "Entrando..." : "Entrar"}
           </button>
+
+          <Link
+            to="/"
+            className="text-sm text-[#064e3b] font-bold text-center hover:text-[#10b981] transition-colors"
+          >
+            Voltar ao leitor
+          </Link>
 
           <Link
             to="/register"

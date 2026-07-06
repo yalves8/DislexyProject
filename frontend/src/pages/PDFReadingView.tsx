@@ -22,6 +22,12 @@ export default function PDFReadingView() {
   const [speechRate, setSpeechRate] = useState<SpeechRate>(1);
 
   const { settings, setSettings, saveSettings, loading: settingsLoading, saving, error } = useReadingSettings();
+  const readingStyle = {
+    fontFamily: settings.font_preference,
+    fontSize: settings.font_size,
+    lineHeight: settings.line_height,
+    letterSpacing: `${settings.letter_spacing}px`,
+  };
 
   useEffect(() => {
     if (!user || !pdfId) return;
@@ -124,7 +130,10 @@ export default function PDFReadingView() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f3] text-[#061c44]">
+    <div
+      className={`min-h-screen ${settings.high_contrast ? "bg-[#050b14] text-white" : "bg-[#f8f7f3] text-[#061c44]"}`}
+      style={readingStyle}
+    >
       <AppNavbar onAccessibility={() => setDrawerOpen(true)} showDesktopAccessibility />
 
       <main className="mx-auto flex max-w-[806px] flex-col gap-6 px-5 pb-12 pt-10">
@@ -161,11 +170,12 @@ export default function PDFReadingView() {
             <div className="relative rounded-lg">
               <div className="absolute inset-0 rounded-lg opacity-10" style={{ backgroundColor: settings.overlay_color }} />
               <div
-                className="relative z-0 min-h-[430px] whitespace-pre-wrap text-[#061c44]"
+                className={`relative z-0 min-h-[430px] whitespace-pre-wrap ${settings.high_contrast ? "text-white" : "text-[#061c44]"}`}
                 style={{
                   fontFamily: settings.font_preference,
                   fontSize: settings.font_size,
-                  lineHeight: 1.9,
+                  lineHeight: settings.line_height,
+                  letterSpacing: `${settings.letter_spacing}px`,
                 }}
               >
                 {paragraphs.map((paragraph, index) => (
@@ -174,7 +184,7 @@ export default function PDFReadingView() {
                   </p>
                 ))}
               </div>
-              <ReadingRuler enabled={settings.ruler_enabled} />
+              <ReadingRuler enabled={settings.ruler_enabled} overlayColor={settings.overlay_color} />
             </div>
 
             <div className="mt-8 flex justify-center">
