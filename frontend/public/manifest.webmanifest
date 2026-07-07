@@ -1,0 +1,34 @@
+{
+  "name": "Luz",
+  "short_name": "Luz",
+  "description": "Leitor de PDF com adaptação acessível para pessoas com dislexia",
+  "theme_color": "#061c44",
+  "background_color": "#F5F5F0",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "categories": ["education", "productivity", "accessibility"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/open",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
+    }
+  ]
+}

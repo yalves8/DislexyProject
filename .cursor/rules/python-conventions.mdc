@@ -1,0 +1,71 @@
+---
+description: Convenções Python para backend FastAPI do DilexyProject
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python — Backend FastAPI
+
+Aplicar em `backend/`. Ignorar `utils/` (legado Streamlit).
+
+## Organização
+
+```
+backend/app/
+├── main.py           # FastAPI app, CORS, lifespan, routers
+├── auth.py           # JWT, bcrypt, get_current_user, require_role
+├── database.py       # engine SQLite, create_db_and_tables, get_session
+├── routers/          # auth.py, students.py, teacher.py
+├── models/           # user.py (User, StudentSettings, TeacherStudentLink), activity.py
+└── services/         # gemini_vision.py, rag.py
+```
+
+- Routers: validação HTTP, Depends, HTTPException — sem lógica de IA pesada
+- Services: integração Gemini/LlamaIndex e prompts
+- Models: SQLModel `table=True`; importar em `database.py` para criar tabelas
+
+## Padrões FastAPI
+
+```python
+# ✅ Router com prefix e guard de role
+router = APIRouter(prefix="/students", tags=["students"])
+_student = require_role("student")
+
+@router.get("/me/settings")
+def get_settings(current_user: User = Depends(_student), session: Session = Depends(get_session)):
+    ...
+
+# ✅ API key via os.getenv, nunca hardcoded
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise HTTPException(500, "GEMINI_API_KEY nao configurada")
+```
+
+## Auth
+
+- `OAuth2PasswordBearer(tokenUrl="/auth/login")`
+- Token payload: `sub` (user id), `role`, `exp`
+- `require_role("student")` / `require_role("teacher")` para rotas protegidas
+
+## Prompts e modelos Gemini
+
+Constantes no topo de `services/gemini_vision.py` e `services/rag.py`:
+
+| Uso | Modelo |
+|-----|--------|
+| Visão/LLM | `gemini-3-flash-preview` |
+| Embeddings (LlamaIndex) | `models/text-embedding-004` |
+
+Se mudar formato de saída do Vision, atualizar `parse_result()` (marcadores `**Texto Original:**` / `**Versão Adaptada:**`).
+
+## Seed e banco
+
+- `python seed.py` — idempotente; cria professor, aluno, vínculo e settings
+- Banco padrão: `backend/dilexy.db` (caminho absoluto via `database.py`)
+- `.env` em `backend/.env` ou raiz do projeto
+
+## Ao modificar
+
+- Manter respostas de erro em português (padrão existente)
+- Não persistir segredos; validar env vars nos endpoints que usam IA
+- Rodar servidor e testar via Swagger (`/docs`) após mudanças

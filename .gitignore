@@ -1,5 +1,31 @@
-.env
+# Python
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+*.db
+
+# Streamlit (legado)
 .streamlit/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Agent / tooling artifacts
+.superpowers/
+.playwright-mcp/
+*.png
+!frontend/public/brand/luz-logo.png
+!frontend/public/icons/icon-192.png
+!frontend/public/icons/icon-512.png
+
+# Backend
+backend/.env
+backend/__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
