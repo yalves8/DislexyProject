@@ -34,3 +34,17 @@ def extract_text_from_pdf_range(pdf_bytes: bytes, start_page: int, end_page: int
         return text.strip(), page_count
     finally:
         doc.close()
+
+
+def extract_text_from_pdf_pages(pdf_bytes: bytes, pages: list[int]) -> tuple[str, int]:
+    """Extrai texto de páginas específicas (não necessariamente consecutivas)."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        page_count = len(doc)
+        valid = sorted(p for p in pages if 1 <= p <= page_count)
+        if not valid:
+            raise ValueError("Nenhuma página válida no intervalo informado")
+        text = "\n\n".join(doc[p - 1].get_text("text") for p in valid)
+        return text.strip(), page_count
+    finally:
+        doc.close()

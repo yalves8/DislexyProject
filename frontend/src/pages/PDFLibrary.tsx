@@ -1,6 +1,8 @@
-import { type ChangeEvent, type DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { type ChangeEvent, type DragEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AccessibilityDrawer from "../components/AccessibilityDrawer";
+
+const PDFPageRangePicker = lazy(() => import("../components/PDFPageRangePicker"));
 import AdaptedStudyMaterial, {
   type AdaptedStudyMaterialData,
   type GlossaryItem,
@@ -20,14 +22,13 @@ import { downloadAdaptationPdf } from "../services/adaptationPdf";
 import {
   clearPendingAdaptation,
   createHistoryId,
-  loadAdaptationHistory,
   loadPendingAdaptation,
   removeLegacyHistory,
-  saveAdaptationHistory,
   savePendingAdaptation,
   SAVED_ADAPTATION_LIMIT,
   type AdaptationHistoryItem,
 } from "../services/adaptationHistory";
+import { saveAdaptation, listPDFs, docToHistoryItem } from "../services/pdfApi";
 
 const FREE_PAGE_LIMIT = 10;
 
@@ -69,19 +70,6 @@ async function estimatePdfPageCount(file: File): Promise<number> {
   return Math.max(1, matches?.length ?? 1);
 }
 
-function parsePageRange(value: string, pageCount: number): ParsedRange | null {
-  const clean = value.trim().replace(/\s/g, "");
-  const match = clean.match(/^(\d+)(?:-(\d+))?$/);
-  if (!match) return null;
-
-  const start = Number(match[1]);
-  const end = Number(match[2] ?? match[1]);
-
-  if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
-  if (start < 1 || end < start || end > pageCount) return null;
-
-  return { start, end, count: end - start + 1 };
-}
 
 function normalizeCards(value: AdaptPDFSelectionResponse["adaptation"]["keyIdeas"], fallback: StudyCard[]): StudyCard[] {
   if (!Array.isArray(value)) return fallback;
@@ -187,14 +175,14 @@ export default function PDFLibrary() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [pdfInfo, setPdfInfo] = useState<LocalPDFInfo | null>(null);
-  const [rangeInput, setRangeInput] = useState("1-10");
+  const [selectedPages, setSelectedPages] = useState<number[]>([]);
+  const [showRangePicker, setShowRangePicker] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [limitMessage, setLimitMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
   const [showGuestSavePrompt, setShowGuestSavePrompt] = useState(false);
   const [fileHandlerFallbackMessage, setFileHandlerFallbackMessage] = useState("");
   const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>("idle");
-  const [history, setHistory] = useState<AdaptationHistoryItem[]>([]);
   const [activeAdaptation, setActiveAdaptation] = useState<AdaptationHistoryItem | null>(null);
   const [downloadState, setDownloadState] = useState<{
     id: string | null;
@@ -204,13 +192,7 @@ export default function PDFLibrary() {
 
   const { settings, setSettings, saveSettings, loading, saving, error } = useReadingSettings();
 
-  const parsedRange = useMemo(() => {
-    if (!pdfInfo) return null;
-    return parsePageRange(rangeInput, pdfInfo.pageCount);
-  }, [pdfInfo, rangeInput]);
-
-  const selectedCount = parsedRange?.count ?? 0;
-  const isOverFreeLimit = selectedCount > FREE_PAGE_LIMIT;
+  const selectedCount = selectedPages.length;
   const isProcessing = processingPhase !== "idle";
   const isDownloadGenerating = downloadState.status === "generating";
   const openedFromFileRoute = location.pathname === "/open";
@@ -254,34 +236,45 @@ export default function PDFLibrary() {
     removeLegacyHistory();
 
     if (!user) {
-      setHistory([]);
       return;
     }
 
-    const loadedHistory = loadAdaptationHistory(user.username);
     const pendingAdaptation = loadPendingAdaptation();
-
-    if (!pendingAdaptation) {
-      setHistory(loadedHistory);
-      return;
-    }
-
     clearPendingAdaptation();
-    setShowGuestSavePrompt(false);
 
-    if (loadedHistory.length >= SAVED_ADAPTATION_LIMIT) {
-      setHistory(loadedHistory);
-      setActiveAdaptation({ ...pendingAdaptation, saved: false });
-      setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
-      return;
-    }
+    void (async () => {
+      if (!pendingAdaptation) return;
 
-    const savedItem = { ...pendingAdaptation, saved: true };
-    const nextHistory = [savedItem, ...loadedHistory].slice(0, SAVED_ADAPTATION_LIMIT);
-    setHistory(nextHistory);
-    saveAdaptationHistory(user.username, nextHistory);
-    setActiveAdaptation(savedItem);
-    setSaveMessage("Adaptação salva no histórico.");
+      try {
+        const docs = await listPDFs(user.token);
+        const items = docs.map(docToHistoryItem);
+
+        setShowGuestSavePrompt(false);
+
+        if (items.length >= SAVED_ADAPTATION_LIMIT) {
+          setActiveAdaptation({ ...pendingAdaptation, saved: false });
+          setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
+          return;
+        }
+
+        try {
+          await saveAdaptation(user.token, {
+            filename: pendingAdaptation.fileName,
+            startPage: pendingAdaptation.startPage,
+            endPage: pendingAdaptation.endPage,
+            material: pendingAdaptation.material,
+          });
+          setActiveAdaptation({ ...pendingAdaptation, saved: true });
+          setSaveMessage("Adaptação salva no histórico.");
+        } catch {
+          setActiveAdaptation({ ...pendingAdaptation, saved: false });
+          setSaveMessage("Não foi possível salvar a adaptação.");
+        }
+      } catch {
+        setActiveAdaptation({ ...pendingAdaptation, saved: false });
+        setSaveMessage("Não foi possível salvar a adaptação.");
+      }
+    })();
   }, [user]);
 
   function openFilePicker() {
@@ -314,7 +307,8 @@ export default function PDFLibrary() {
         sizeLabel: formatFileSize(file.size),
         pageCountSource: "backend",
       });
-      setRangeInput(`1-${defaultEnd}`);
+      setSelectedPages(Array.from({ length: defaultEnd }, (_, i) => i + 1));
+      setShowRangePicker(true);
     } catch (err) {
       const pageCount = await estimatePdfPageCount(file);
       const defaultEnd = Math.min(pageCount, FREE_PAGE_LIMIT);
@@ -324,7 +318,8 @@ export default function PDFLibrary() {
         sizeLabel: formatFileSize(file.size),
         pageCountSource: "estimated",
       });
-      setRangeInput(`1-${defaultEnd}`);
+      setSelectedPages(Array.from({ length: defaultEnd }, (_, i) => i + 1));
+      setShowRangePicker(true);
       setErrorMessage(
         err instanceof Error
           ? `${err.message} Usando uma estimativa local de páginas.`
@@ -344,12 +339,6 @@ export default function PDFLibrary() {
     event.preventDefault();
     setDragActive(false);
     void handlePDF(event.dataTransfer.files?.[0]);
-  }
-
-  function persistHistory(items: AdaptationHistoryItem[]) {
-    if (!user) return;
-    setHistory(items);
-    saveAdaptationHistory(user.username, items);
   }
 
   async function handleDownload(item: AdaptationHistoryItem) {
@@ -391,23 +380,26 @@ export default function PDFLibrary() {
     clearPendingAdaptation();
   }
 
-  async function handleAdapt() {
+  async function handleAdapt(overridePages?: number[]) {
     if (!pdfInfo) {
       setErrorMessage("Abra um PDF antes de adaptar o conteúdo.");
       return;
     }
 
-    if (!parsedRange) {
-      setLimitMessage("Informe um intervalo válido, como 1-5 ou 12-20.");
+    const pages = overridePages ?? selectedPages;
+
+    if (pages.length === 0) {
+      setLimitMessage("Selecione pelo menos uma página antes de adaptar.");
       return;
     }
 
-    if (parsedRange.count > FREE_PAGE_LIMIT) {
-      setLimitMessage(
-        "Você pode adaptar até 10 páginas por vez. Escolha um trecho menor para continuar.",
-      );
+    if (pages.length > FREE_PAGE_LIMIT) {
+      setLimitMessage(`Você pode adaptar até ${FREE_PAGE_LIMIT} páginas por vez.`);
       return;
     }
+
+    const start = Math.min(...pages);
+    const end = Math.max(...pages);
 
     setErrorMessage("");
     setLimitMessage("");
@@ -416,9 +408,11 @@ export default function PDFLibrary() {
     setDownloadState({ id: null, status: "idle", message: "" });
     setActiveAdaptation(null);
 
+    const effectiveRange: ParsedRange = { start, end, count: pages.length };
+
     try {
       setProcessingPhase("extracting");
-      const extracted = await extractPDFSelection(pdfInfo.file, parsedRange.start, parsedRange.end);
+      const extracted = await extractPDFSelection(pdfInfo.file, pages);
 
       setProcessingPhase("retrieving-rag");
       await new Promise((resolve) => setTimeout(resolve, 250));
@@ -426,19 +420,19 @@ export default function PDFLibrary() {
       setProcessingPhase("adapting");
       const response = await adaptPDFSelection({
         fileName: pdfInfo.file.name,
-        startPage: parsedRange.start,
-        endPage: parsedRange.end,
+        startPage: start,
+        endPage: end,
         extractedText: extracted.extracted_text,
       });
 
       setProcessingPhase("rendering");
-      const material = buildAdaptedMaterial(pdfInfo, parsedRange, response);
+      const material = buildAdaptedMaterial(pdfInfo, effectiveRange, response);
       const historyItem: AdaptationHistoryItem = {
         id: createHistoryId(),
         fileName: pdfInfo.file.name,
         title: material.title,
-        startPage: parsedRange.start,
-        endPage: parsedRange.end,
+        startPage: start,
+        endPage: end,
         pageCount: pdfInfo.pageCount,
         createdAt: new Date().toISOString(),
         material,
@@ -453,17 +447,23 @@ export default function PDFLibrary() {
         return;
       }
 
-      if (history.length >= SAVED_ADAPTATION_LIMIT) {
+      try {
+        await saveAdaptation(user.token, {
+          filename: pdfInfo.file.name,
+          startPage: start,
+          endPage: end,
+          material,
+        });
+        setActiveAdaptation({ ...historyItem, saved: true });
+        setSaveMessage("Adaptação salva no histórico.");
+      } catch (err) {
         setActiveAdaptation(historyItem);
-        setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
-        return;
+        if (err instanceof Error && err.message.toLowerCase().includes("limite")) {
+          setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
+        } else {
+          setSaveMessage("Não foi possível salvar a adaptação no servidor.");
+        }
       }
-
-      const savedItem = { ...historyItem, saved: true };
-      const nextHistory = [savedItem, ...history].slice(0, SAVED_ADAPTATION_LIMIT);
-      persistHistory(nextHistory);
-      setActiveAdaptation(savedItem);
-      setSaveMessage("Adaptação salva no histórico.");
     } catch (err) {
       setErrorMessage(
         err instanceof Error
@@ -477,8 +477,12 @@ export default function PDFLibrary() {
 
   return (
     <div
-      className={`min-h-screen ${settings.high_contrast ? "bg-[#050b14] text-white" : "bg-[#f3f5ef] text-[#0f2d4a]"}`}
-      style={readingStyle}
+      className={`min-h-screen ${settings.high_contrast ? "bg-[#050b14] text-white" : "text-[#064e3b]"}`}
+      style={
+        settings.high_contrast
+          ? readingStyle
+          : { ...readingStyle, background: "linear-gradient(145deg, #d1fae5 0%, #a7f3d0 30%, #bfdbfe 100%)" }
+      }
     >
       <AppNavbar
         onAccessibility={() => setDrawerOpen(true)}
@@ -489,11 +493,17 @@ export default function PDFLibrary() {
 
       <main className="mx-auto grid max-w-7xl gap-5 px-4 pb-10 pt-5 lg:grid-cols-[380px_minmax(0,1fr)]">
         <aside className="flex flex-col gap-4">
-          <section className={`rounded-lg border p-4 ${settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-white"}`}>
+          <section
+            className={`rounded-2xl border p-4 ${
+              settings.high_contrast
+                ? "border-white/30 bg-white/5"
+                : "border-white/60 bg-white/80 shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
+            }`}
+          >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h1 className="text-xl font-black">Luz</h1>
-                <p className={`mt-1 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+                <h1 className="text-xl font-extrabold">Luz</h1>
+                <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                   Leitor acessível de PDF.
                 </p>
               </div>
@@ -506,42 +516,48 @@ export default function PDFLibrary() {
               }}
               onDragLeave={() => setDragActive(false)}
               onDrop={handleDrop}
-              className={`mt-4 rounded-lg border-2 border-dashed p-4 transition ${
+              className={`mt-4 rounded-xl border-2 border-dashed p-4 transition ${
                 dragActive
-                  ? "border-[#2c6e63] bg-[#e9f7ef]"
+                  ? "border-[#10b981] bg-[#d1fae5]"
                   : settings.high_contrast
                     ? "border-white/40 bg-white/5"
-                    : "border-[#b9cbd9] bg-[#fbfcf8]"
+                    : "border-[#a7f3d0] bg-[#f0fdf4]"
               }`}
             >
-              <p className="text-sm font-bold">Abrir PDF</p>
-              <p className={`mt-1 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                Escolha um arquivo PDF.
+              <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                Arraste ou escolha um arquivo PDF.
               </p>
               <button
                 type="button"
                 onClick={openFilePicker}
                 disabled={isProcessing}
-                className="mt-4 min-h-11 w-full rounded-lg bg-[#0f2d4a] px-4 py-3 text-sm font-black text-white transition hover:bg-[#173f66] disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 min-h-11 w-full rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
               >
-                Abrir PDF
+                Selecionar PDF
               </button>
             </div>
           </section>
 
           {pdfInfo && (
-            <section className={`rounded-lg border p-4 ${settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-white"}`}>
-              <h2 className="text-lg font-black">Arquivo aberto</h2>
+            <section
+              className={`rounded-2xl border p-4 ${
+                settings.high_contrast
+                  ? "border-white/30 bg-white/5"
+                  : "border-white/60 bg-white/80 shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
+              }`}
+            >
+              <h2 className="text-lg font-extrabold">Arquivo aberto</h2>
               <dl className="mt-4 grid gap-3 text-sm">
                 <div className="grid min-w-0 grid-cols-[88px_minmax(0,1fr)] items-center gap-3">
-                  <dt className={settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}>Nome</dt>
-                  <dd className="min-w-0 truncate text-right font-black" title={pdfInfo.file.name}>
+                  <dt className={`font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>Nome</dt>
+                  <dd className="min-w-0 truncate text-right font-bold" title={pdfInfo.file.name}>
                     {pdfInfo.file.name}
                   </dd>
                 </div>
                 <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3">
-                  <dt className={settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}>Páginas</dt>
-                  <dd className="text-right font-black">
+                  <dt className={`font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>Páginas</dt>
+                  <dd className="text-right font-bold">
                     {pdfInfo.pageCount}
                     {pdfInfo.pageCountSource === "estimated" && <span className="font-medium"> estimadas</span>}
                   </dd>
@@ -551,50 +567,60 @@ export default function PDFLibrary() {
           )}
 
           {pdfInfo && (
-            <section className={`rounded-lg border p-4 ${settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-white"}`}>
-              <h2 className="text-lg font-black">Trecho para adaptar</h2>
-              <p className={`mt-1 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                Você pode adaptar até 10 páginas por vez.
-              </p>
+            <section
+              className={`rounded-2xl border p-4 ${
+                settings.high_contrast
+                  ? "border-white/30 bg-white/5"
+                  : "border-white/60 bg-white/80 shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
+              }`}
+            >
+              <h2 className="text-lg font-extrabold">Trecho selecionado</h2>
 
-              <label className="mt-4 flex flex-col gap-2">
-                <span className="text-sm font-black">Intervalo de páginas</span>
-                <input
-                  value={rangeInput}
-                  onChange={(event) => {
-                    setRangeInput(event.target.value);
-                    setLimitMessage("");
-                  }}
-                  inputMode="numeric"
-                  placeholder="Ex.: 1-10"
-                  className={`min-h-11 rounded-lg border px-4 text-base font-bold outline-none ${
-                    settings.high_contrast
-                      ? "border-white/40 bg-[#07111f] text-white"
-                      : "border-[#b9cbd9] bg-white text-[#0f2d4a]"
+              {/* Selected range display */}
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span
+                  className={`rounded-xl px-3 py-2 text-sm font-bold ${
+                    settings.high_contrast ? "bg-white/10 text-white" : "bg-[#d1fae5] text-[#064e3b]"
                   }`}
-                />
-              </label>
-
-              <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                <span className={`rounded-lg px-3 py-2 font-bold ${settings.high_contrast ? "bg-white/10" : "bg-[#f4f8fb]"}`}>
-                  {parsedRange ? selectedCount : 0} página{selectedCount === 1 ? "" : "s"}
+                >
+                  {selectedCount > 0 ? `${selectedCount} página${selectedCount === 1 ? "" : "s"}` : "Nenhuma seleção"}
                 </span>
-                <span className={`rounded-lg px-3 py-2 font-bold ${isOverFreeLimit ? "bg-red-50 text-red-700" : "bg-[#eef8f1] text-[#2c6e63]"}`}>
-                  Máximo: {FREE_PAGE_LIMIT}
-                </span>
+                {selectedCount > 0 && (
+                  <span
+                    className={`text-sm font-semibold ${settings.high_contrast ? "text-[#9ca3af]" : "text-[#047857]"}`}
+                  >
+                    {selectedCount > 1
+                      ? `${Math.min(...selectedPages)}–${Math.max(...selectedPages)}`
+                      : `pág. ${selectedPages[0]}`}
+                  </span>
+                )}
               </div>
 
               <button
                 type="button"
-                onClick={handleAdapt}
+                onClick={() => setShowRangePicker(true)}
                 disabled={isProcessing}
-                className="mt-4 min-h-11 w-full rounded-lg bg-[#2c6e63] px-4 py-3 text-sm font-black text-white transition hover:bg-[#245c53] disabled:cursor-not-allowed disabled:opacity-60"
+                className={`mt-3 min-h-11 w-full rounded-xl border px-4 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  settings.high_contrast
+                    ? "border-white/30 text-white hover:bg-white/10"
+                    : "border-[#a7f3d0] text-[#047857] hover:bg-[#d1fae5]"
+                }`}
+              >
+                Ver PDF e alterar seleção
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleAdapt()}
+                disabled={isProcessing || selectedCount === 0}
+                className="mt-3 min-h-11 w-full rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
               >
                 {isProcessing ? "Processando..." : "Adaptar trecho"}
               </button>
 
               {limitMessage && (
-                <div className="mt-4 rounded-lg border border-[#f0d08a] bg-[#fff7df] px-4 py-3 text-sm font-bold text-[#76520a]">
+                <div className="mt-3 rounded-xl border border-[#f0d08a] bg-[#fff7df] px-4 py-3 text-sm font-bold text-[#76520a]">
                   <p>{limitMessage}</p>
                 </div>
               )}
@@ -609,65 +635,138 @@ export default function PDFLibrary() {
         </aside>
 
         <section className="min-w-0">
-          <div className={`min-h-[calc(100vh-120px)] rounded-lg border p-4 ${settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-white"}`}>
+          <div
+            className={`flex min-h-[calc(100vh-120px)] flex-col rounded-2xl border p-6 ${
+              processingPhase !== "idle"
+                ? settings.high_contrast
+                  ? "border-white/30 bg-white/10"
+                  : "border-[#a7f3d0] bg-[#d1fae5]"
+                : settings.high_contrast
+                  ? "border-white/30 bg-white/5"
+                  : "border-white/60 bg-white/80 shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
+            }`}
+          >
             {!pdfInfo && !activeAdaptation && (
-              <div className="flex min-h-[520px] flex-col items-center justify-center text-center">
-                <h2 className="text-2xl font-black">
-                  {openedFromFileRoute ? "Arquivo aberto no Luz" : "Abra um PDF para começar."}
-                </h2>
-                <p className={`mt-3 max-w-xl ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                  {openedFromFileRoute
-                    ? fileHandlerFallbackMessage || "Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o PDF."
-                    : "Escolha as páginas que deseja adaptar."}
-                </p>
-                <button
-                  type="button"
-                  onClick={openFilePicker}
-                  className="mt-6 min-h-11 rounded-lg bg-[#0f2d4a] px-5 py-3 text-sm font-black text-white transition hover:bg-[#173f66]"
-                >
-                  Selecionar PDF
-                </button>
+              <div className="flex min-h-[520px] flex-col items-center justify-center px-4 py-12 text-center">
+                {openedFromFileRoute ? (
+                  <>
+                    <h2 className="text-2xl font-extrabold">Arquivo aberto no Luz</h2>
+                    <p className={`mt-3 max-w-xl font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                      {fileHandlerFallbackMessage || "Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o PDF."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      className="mt-6 min-h-11 rounded-xl px-6 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                    >
+                      Selecionar PDF
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div
+                      className="mb-5 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-bold"
+                      style={{ background: "rgba(16,185,129,0.12)", color: "#047857" }}
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Sem cadastro necessário
+                    </div>
+
+                    <h2 className={`text-3xl font-extrabold leading-tight ${settings.high_contrast ? "text-white" : "text-[#064e3b]"}`}>
+                      Leitura acessível para<br />quem tem dislexia
+                    </h2>
+
+                    <p className={`mt-3 max-w-md text-base font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                      Abra qualquer PDF e receba o conteúdo adaptado pela IA em um formato mais fácil de ler.
+                    </p>
+
+                    <ul className={`mt-6 space-y-2 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#065f46]"}`}>
+                      <li className="flex items-center gap-2 justify-center">
+                        <span className="text-[#10b981]">✦</span> Selecione até 10 páginas de qualquer PDF
+                      </li>
+                      <li className="flex items-center gap-2 justify-center">
+                        <span className="text-[#10b981]">✦</span> IA adapta o conteúdo para facilitar a leitura
+                      </li>
+                      <li className="flex items-center gap-2 justify-center">
+                        <span className="text-[#10b981]">✦</span> Fontes, cores e régua de leitura personalizáveis
+                      </li>
+                    </ul>
+
+                    <button
+                      type="button"
+                      onClick={openFilePicker}
+                      className="mt-8 min-h-12 rounded-xl px-8 py-3.5 text-base font-bold text-white shadow-[0_4px_18px_rgba(16,185,129,0.35)] transition-opacity hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                    >
+                      Selecionar PDF
+                    </button>
+
+                    <p className={`mt-3 text-xs ${settings.high_contrast ? "text-[#9aa0a6]" : "text-[#6b7280]"}`}>
+                      Ou arraste um arquivo PDF aqui
+                    </p>
+
+                    {!user && (
+                      <div className={`mt-10 flex items-center gap-4 text-xs ${settings.high_contrast ? "text-[#9aa0a6]" : "text-[#9ca3af]"}`}>
+                        <Link to="/login" className="hover:text-[#10b981] transition-colors font-semibold">
+                          Entrar
+                        </Link>
+                        <span>·</span>
+                        <Link to="/register" className="hover:text-[#10b981] transition-colors font-semibold">
+                          Criar conta
+                        </Link>
+                        <span>·</span>
+                        <span>para salvar histórico</span>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
             {pdfInfo && !activeAdaptation && processingPhase === "idle" && (
               <div className="flex min-h-[520px] flex-col items-center justify-center text-center">
-                <p className="text-sm font-black text-[#2c6e63]">PDF pronto</p>
-                <h2 className="mt-2 text-2xl font-black">Escolha as páginas.</h2>
-                <p className={`mt-3 max-w-xl ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                  Depois clique em “Adaptar trecho”.
+                <p className="text-sm font-bold text-[#10b981]">PDF pronto</p>
+                <h2 className="mt-2 text-2xl font-extrabold">Escolha as páginas.</h2>
+                <p className={`mt-3 max-w-xl font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                  Depois clique em "Adaptar trecho".
                 </p>
-                <p className={`mt-2 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+                <p className={`mt-2 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                   Você pode adaptar até 10 páginas por vez.
                 </p>
               </div>
             )}
 
             {processingPhase !== "idle" && (
-              <div className="flex min-h-[520px] flex-col justify-center rounded-lg border border-[#b9d7c7] bg-[#eef8f1] p-6 text-center">
-                <div className="h-2 w-full overflow-hidden rounded-lg bg-white">
-                  <div className="h-full w-2/3 animate-pulse rounded-lg bg-[#2c6e63]" />
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/70">
+                  <div className="h-full w-2/3 animate-pulse rounded-full bg-[#10b981]" />
                 </div>
-                <h2 className="mt-6 text-2xl font-black text-[#2c6e63]">Adaptando seu PDF...</h2>
-                <p className="mt-3 text-[#52627f]">Estamos preparando uma versão mais fácil de ler.</p>
-                <p className="mt-2 font-black text-[#2c6e63]">{PROCESSING_LABELS[processingPhase]}</p>
+                <h2 className="mt-6 text-2xl font-extrabold text-[#064e3b]">Adaptando seu PDF...</h2>
+                <p className="mt-3 font-semibold text-[#047857]">Estamos preparando uma versão mais fácil de ler.</p>
+                <p className="mt-2 font-bold text-[#064e3b]">{PROCESSING_LABELS[processingPhase]}</p>
               </div>
             )}
 
             {activeAdaptation && processingPhase === "idle" && (
               <div className="flex flex-col gap-4">
                 {saveMessage && (
-                  <div className={`rounded-lg border px-4 py-3 text-sm font-bold ${
-                    saveMessage.includes("cheio")
-                      ? "border-[#f0d08a] bg-[#fff7df] text-[#76520a]"
-                      : "border-[#b9d7c7] bg-[#eef8f1] text-[#2c6e63]"
-                  }`}>
+                  <div
+                    className={`rounded-xl border px-4 py-3 text-sm font-bold ${
+                      saveMessage.includes("cheio")
+                        ? "border-[#f0d08a] bg-[#fff7df] text-[#76520a]"
+                        : "border-[#6ee7b7] bg-[#d1fae5] text-[#064e3b]"
+                    }`}
+                  >
                     <p>{saveMessage}</p>
                     {user && saveMessage.includes("histórico") && (
                       <button
                         type="button"
                         onClick={() => navigate("/historico")}
-                        className="mt-2 rounded-lg bg-[#0f2d4a] px-3 py-2 text-xs font-black text-white transition hover:bg-[#173f66]"
+                        className="mt-2 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
                       >
                         Ver histórico
                       </button>
@@ -676,23 +775,24 @@ export default function PDFLibrary() {
                 )}
 
                 {showGuestSavePrompt && !user && (
-                  <section className="rounded-lg border border-[#d8e2ea] bg-white p-4">
-                    <h3 className="font-black text-[#0f2d4a]">Quer acessar esta adaptação depois?</h3>
-                    <p className="mt-2 text-sm text-[#52627f]">
+                  <section className="rounded-2xl border border-[#a7f3d0] bg-white/80 p-4 backdrop-blur-sm">
+                    <h3 className="font-extrabold text-[#064e3b]">Quer acessar esta adaptação depois?</h3>
+                    <p className="mt-2 text-sm font-semibold text-[#047857]">
                       Entre na sua conta para salvar este material no histórico.
                     </p>
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={handleLoginToSave}
-                        className="min-h-11 rounded-lg bg-[#0f2d4a] px-4 py-3 text-sm font-black text-white transition hover:bg-[#173f66]"
+                        className="min-h-11 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
+                        style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
                       >
                         Entrar para salvar
                       </button>
                       <button
                         type="button"
                         onClick={handleContinueWithoutSaving}
-                        className="min-h-11 rounded-lg border border-[#b9cbd9] bg-white px-4 py-3 text-sm font-black text-[#0f2d4a] transition hover:bg-[#f4f8fb]"
+                        className="min-h-11 rounded-xl border border-[#a7f3d0] bg-white/80 px-4 py-3 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4]"
                       >
                         Continuar sem salvar
                       </button>
@@ -724,6 +824,22 @@ export default function PDFLibrary() {
         onClose={() => setDrawerOpen(false)}
         onSave={saveSettings}
       />
+
+      {showRangePicker && pdfInfo && (
+        <Suspense fallback={null}>
+          <PDFPageRangePicker
+            file={pdfInfo.file}
+            pageCount={pdfInfo.pageCount}
+            initialSelected={selectedPages}
+            onClose={() => setShowRangePicker(false)}
+            onConfirm={(pages) => {
+              setSelectedPages(pages);
+              setShowRangePicker(false);
+              void handleAdapt(pages);
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

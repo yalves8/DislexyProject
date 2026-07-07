@@ -149,11 +149,10 @@ export async function getPDFPageInfo(file: File): Promise<PDFPageInfo> {
   return response.json();
 }
 
-export async function extractPDFSelection(file: File, startPage: number, endPage: number): Promise<ExtractedPDFSelection> {
+export async function extractPDFSelection(file: File, pages: number[]): Promise<ExtractedPDFSelection> {
   const form = new FormData();
   form.append("file", file);
-  form.append("start_page", String(startPage));
-  form.append("end_page", String(endPage));
+  form.append("pages", pages.join(","));
 
   const response = await fetch(`${API_BASE}/pdfs/extract-selection`, {
     method: "POST",

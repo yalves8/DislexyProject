@@ -41,12 +41,12 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
 
   return (
     <>
-      <header className="border-b border-gray-200 bg-white px-6 py-3">
+      <header className="border-b border-[#a7f3d0] bg-white/90 px-6 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4">
           <button
             type="button"
             onClick={goToLibrary}
-            className="flex min-w-0 items-center text-left font-bold text-gray-800"
+            className="flex min-w-0 items-center text-left font-bold text-[#064e3b]"
             aria-label="Ir para o leitor Luz"
           >
             <AppLogo />
@@ -56,7 +56,7 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             <button
               type="button"
               onClick={goToLibrary}
-              className="text-sm font-medium text-[#061c44] transition hover:text-blue-700"
+              className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
             >
               Leitor
             </button>
@@ -64,7 +64,7 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
               <button
                 type="button"
                 onClick={openHistory}
-                className="text-sm font-medium text-[#061c44] transition hover:text-blue-700"
+                className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
               >
                 Histórico
               </button>
@@ -73,16 +73,16 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
               <button
                 type="button"
                 onClick={openAccessibility}
-                className="text-sm font-medium text-[#061c44] transition hover:text-blue-700"
+                className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
               >
                 Acessibilidade
               </button>
             )}
-            {user && <span className="text-sm text-gray-500">{user.username}</span>}
+            {user && <span className="text-sm font-semibold text-[#047857]">{user.username}</span>}
             <button
               type="button"
               onClick={handleLogout}
-              className={`text-sm transition hover:underline ${user ? "text-red-500" : "font-medium text-[#061c44]"}`}
+              className={`text-sm font-semibold transition hover:underline ${user ? "text-red-500" : "text-[#064e3b] hover:text-[#10b981]"}`}
             >
               {user ? "Sair" : "Entrar"}
             </button>
@@ -91,7 +91,7 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
-            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-[#061c44] shadow-sm md:hidden"
+            className="rounded-xl border border-[#a7f3d0] bg-white/80 px-3 py-2 text-sm font-bold text-[#064e3b] shadow-sm transition hover:bg-[#f0fdf4] md:hidden"
             aria-label="Abrir menu"
           >
             ☰
@@ -108,30 +108,30 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             aria-label="Fechar menu"
           />
 
-          <aside className="relative flex h-full w-72 flex-col gap-5 bg-white p-5 shadow-2xl">
+          <aside className="relative flex h-full w-72 flex-col gap-5 bg-white/95 p-5 shadow-2xl backdrop-blur-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="flex items-center">
                   <AppLogo />
                 </div>
-                {user && <p className="mt-1 text-sm text-gray-500">{user.username}</p>}
+                {user && <p className="mt-1 text-sm font-semibold text-[#047857]">{user.username}</p>}
               </div>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="rounded-lg px-3 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100"
+                className="rounded-xl px-3 py-1 text-xl leading-none text-[#047857] hover:bg-[#f0fdf4]"
                 aria-label="Fechar"
               >
                 ×
               </button>
             </div>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-[#a7f3d0]" />
 
             <button
               type="button"
               onClick={goToLibrary}
-              className="rounded-lg px-3 py-3 text-left text-sm font-semibold text-[#061c44] hover:bg-gray-50"
+              className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
             >
               Leitor
             </button>
@@ -139,7 +139,7 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
               <button
                 type="button"
                 onClick={openHistory}
-                className="rounded-lg px-3 py-3 text-left text-sm font-semibold text-[#061c44] hover:bg-gray-50"
+                className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
               >
                 Histórico
               </button>
@@ -147,7 +147,7 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             <button
               type="button"
               onClick={openAccessibility}
-              className="rounded-lg px-3 py-3 text-left text-sm font-semibold text-[#061c44] hover:bg-gray-50"
+              className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
             >
               Acessibilidade
             </button>
@@ -155,8 +155,8 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             <button
               type="button"
               onClick={handleLogout}
-              className={`mt-auto rounded-lg px-3 py-3 text-left text-sm font-semibold ${
-                user ? "text-red-500 hover:bg-red-50" : "text-[#061c44] hover:bg-gray-50"
+              className={`mt-auto rounded-xl px-3 py-3 text-left text-sm font-semibold ${
+                user ? "text-red-500 hover:bg-red-50" : "text-[#064e3b] hover:bg-[#f0fdf4]"
               }`}
             >
               {user ? "Sair" : "Entrar"}

@@ -1,100 +1,53 @@
 """
-Cria usuários iniciais para desenvolvimento e testes.
+Cria usuário inicial para desenvolvimento e testes.
 
 Uso:
     cd backend
     python seed.py
 """
 import sys
-import os
 from pathlib import Path
 
-# Garante que o .env é carregado antes de qualquer import da app
 _here = Path(__file__).parent
 sys.path.insert(0, str(_here))
 
 from dotenv import load_dotenv
-load_dotenv(_here / ".env")  # backend/.env
-load_dotenv(_here.parent / ".env")  # raiz do projeto (fallback)
+load_dotenv(_here / ".env")
+load_dotenv(_here.parent / ".env")
 
-from sqlmodel import Session, select
 import bcrypt
+from sqlmodel import Session, select
 from app.database import engine, create_db_and_tables
-from app.models.user import User, StudentSettings, TeacherStudentLink
+from app.models.user import User, StudentSettings
 
 
 def _hash(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-USERS = [
-    {"username": "professor", "password": "senha123", "role": "teacher"},
-    {"username": "aluno", "password": "senha123", "role": "student"},
-]
 
 
 def seed() -> None:
     create_db_and_tables()
 
     with Session(engine) as session:
-        created: dict[str, User] = {}
+        existing = session.exec(select(User).where(User.username == "usuario")).first()
 
-        for data in USERS:
-            existing = session.exec(
-                select(User).where(User.username == data["username"])
-            ).first()
-
-            if existing:
-                print(f"  [skip] {data['username']} já existe")
-                created[data["username"]] = existing
-                continue
-
-            user = User(
-                username=data["username"],
-                password_hash=_hash(data["password"]),
-                role=data["role"],
-            )
+        if existing:
+            print("  [skip] usuario já existe")
+            user = existing
+        else:
+            user = User(username="usuario", password_hash=_hash("senha123"))
             session.add(user)
-            session.flush()  # popula user.id antes de usar como FK
-            created[data["username"]] = user
-            print(f"  [ok]   {data['username']} criado (role={data['role']})")
+            session.flush()
+            print("  [ok]   usuario criado")
 
-        # Configurações padrão do aluno
-        if "aluno" in created:
-            student = created["aluno"]
-            existing_settings = session.get(StudentSettings, student.id)
-            if not existing_settings:
-                session.add(
-                    StudentSettings(
-                        user_id=student.id,
-                        font_preference="OpenDyslexic",
-                        font_size=18,
-                        overlay_color="#FFF3CD",
-                        ruler_enabled=True,
-                    )
-                )
-                print("  [ok]   Configuracoes de leitura do aluno criadas")
-
-        # Vínculo professor ↔ aluno
-        if "professor" in created and "aluno" in created:
-            teacher = created["professor"]
-            student = created["aluno"]
-            existing_link = session.get(
-                TeacherStudentLink, (teacher.id, student.id)
-            )
-            if not existing_link:
-                session.add(
-                    TeacherStudentLink(
-                        teacher_id=teacher.id,
-                        student_id=student.id,
-                    )
-                )
-                print("  [ok]   Vinculo professor -> aluno criado")
+        if not session.get(StudentSettings, user.id):
+            session.add(StudentSettings(user_id=user.id))
+            print("  [ok]   configurações de leitura criadas")
 
         session.commit()
 
-    print("\nSeed concluido!")
-    print("  username=professor  senha=senha123  role=teacher")
-    print("  username=aluno      senha=senha123  role=student")
+    print("\nSeed concluído!")
+    print("  username=usuario  senha=senha123")
 
 
 if __name__ == "__main__":

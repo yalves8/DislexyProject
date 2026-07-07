@@ -6,12 +6,8 @@ import AppNavbar from "../components/AppNavbar";
 import { useAuth } from "../contexts/AuthContext";
 import { useReadingSettings } from "../hooks/useReadingSettings";
 import { downloadAdaptationPdf } from "../services/adaptationPdf";
-import {
-  loadAdaptationHistory,
-  saveAdaptationHistory,
-  SAVED_ADAPTATION_LIMIT,
-  type AdaptationHistoryItem,
-} from "../services/adaptationHistory";
+import { SAVED_ADAPTATION_LIMIT, type AdaptationHistoryItem } from "../services/adaptationHistory";
+import { listPDFs, deletePDF, docToHistoryItem } from "../services/pdfApi";
 
 type DownloadStatus = "idle" | "generating" | "success" | "error";
 
@@ -57,28 +53,33 @@ export default function HistoryPage() {
       return;
     }
 
-    const loaded = loadAdaptationHistory(user.username);
-    setHistory(loaded);
-    setSelectedItem((current) => {
-      if (!current) return null;
-      return loaded.find((item) => item.id === current.id) ?? null;
-    });
+    void listPDFs(user.token)
+      .then((docs) => {
+        const items = docs.map(docToHistoryItem);
+        setHistory(items);
+        setSelectedItem((current) => {
+          if (!current) return null;
+          return items.find((item) => item.id === current.id) ?? null;
+        });
+      })
+      .catch(() => {
+        setHistory([]);
+        setStatusMessage("Não foi possível carregar o histórico. Verifique sua conexão.");
+      });
   }, [user]);
 
-  function persistHistory(items: AdaptationHistoryItem[]) {
-    if (!user) return;
-    setHistory(items);
-    saveAdaptationHistory(user.username, items);
-  }
-
-  function handleDelete(item: AdaptationHistoryItem) {
+  async function handleDelete(item: AdaptationHistoryItem) {
     const confirmed = window.confirm("Excluir esta adaptação do histórico?");
-    if (!confirmed) return;
+    if (!confirmed || !user) return;
 
-    const nextHistory = history.filter((historyItem) => historyItem.id !== item.id);
-    persistHistory(nextHistory);
-    if (selectedItem?.id === item.id) setSelectedItem(null);
-    setStatusMessage("Adaptação excluída do histórico.");
+    try {
+      await deletePDF(Number(item.id), user.token);
+      setHistory((prev) => prev.filter((h) => h.id !== item.id));
+      if (selectedItem?.id === item.id) setSelectedItem(null);
+      setStatusMessage("Adaptação excluída do histórico.");
+    } catch {
+      setStatusMessage("Não foi possível excluir a adaptação. Tente novamente.");
+    }
   }
 
   async function handleDownload(item: AdaptationHistoryItem) {
@@ -110,25 +111,35 @@ export default function HistoryPage() {
 
   return (
     <div
-      className={`min-h-screen ${settings.high_contrast ? "bg-[#050b14] text-white" : "bg-[#f3f5ef] text-[#0f2d4a]"}`}
-      style={readingStyle}
+      className={`min-h-screen ${settings.high_contrast ? "bg-[#050b14] text-white" : "text-[#064e3b]"}`}
+      style={
+        settings.high_contrast
+          ? readingStyle
+          : { ...readingStyle, background: "linear-gradient(145deg, #d1fae5 0%, #a7f3d0 30%, #bfdbfe 100%)" }
+      }
     >
       <AppNavbar onAccessibility={() => setDrawerOpen(true)} showDesktopAccessibility />
 
       <main className="mx-auto flex max-w-7xl flex-col gap-5 px-4 pb-10 pt-5">
-        <section className={`rounded-lg border p-5 ${settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-white"}`}>
+        <section
+          className={`rounded-2xl border p-5 ${
+            settings.high_contrast
+              ? "border-white/30 bg-white/5"
+              : "border-white/60 bg-white/80 shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
+          }`}
+        >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-2xl font-black">Histórico</h1>
-              <p className={`mt-1 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+              <h1 className="text-2xl font-extrabold">Histórico</h1>
+              <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                 Suas adaptações salvas
               </p>
             </div>
 
             {user && (
               <span
-                className={`w-fit rounded-lg px-3 py-2 text-sm font-black ${
-                  historyLimitReached ? "bg-[#fff7df] text-[#76520a]" : "bg-[#eef8f1] text-[#2c6e63]"
+                className={`w-fit rounded-xl px-3 py-2 text-sm font-bold ${
+                  historyLimitReached ? "bg-[#fff7df] text-[#76520a]" : "bg-[#d1fae5] text-[#064e3b]"
                 }`}
               >
                 {history.length}/{SAVED_ADAPTATION_LIMIT}
@@ -137,33 +148,47 @@ export default function HistoryPage() {
           </div>
 
           {!user ? (
-            <div className="mt-6 rounded-lg border border-dashed border-[#d8e2ea] bg-[#fbfcf8] p-5">
-              <h2 className="text-lg font-black">Entre para acessar seu histórico.</h2>
-              <p className="mt-2 text-sm text-[#52627f]">
-                As adaptações só ficam salvas quando você está logado.
+            <div className="mt-6 rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4]/60 p-5">
+              <h2 className="text-lg font-extrabold text-[#064e3b]">Entre ou cadastre-se para acessar seu histórico.</h2>
+              <p className="mt-2 text-sm font-semibold text-[#047857]">
+                As adaptações ficam salvas na sua conta.
               </p>
-              <button
-                type="button"
-                onClick={() => navigate("/login", { state: { from: "/historico" } })}
-                className="mt-4 min-h-11 rounded-lg bg-[#0f2d4a] px-5 py-3 text-sm font-black text-white transition hover:bg-[#173f66]"
-              >
-                Entrar
-              </button>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => navigate("/login", { state: { from: "/historico" } })}
+                  className="min-h-11 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
+                  style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                >
+                  Entrar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/register")}
+                  className="min-h-11 rounded-xl border border-[#a7f3d0] bg-white/80 px-5 py-3 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4]"
+                >
+                  Cadastrar-se
+                </button>
+              </div>
             </div>
           ) : (
             <>
-              <p className={`mt-4 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+              <p className={`mt-4 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                 Plano gratuito: 5 adaptações salvas.
               </p>
 
               {statusMessage && (
-                <p className="mt-4 rounded-lg border border-[#b9d7c7] bg-[#eef8f1] px-4 py-3 text-sm font-bold text-[#2c6e63]">
+                <p className="mt-4 rounded-xl border border-[#6ee7b7] bg-[#d1fae5] px-4 py-3 text-sm font-bold text-[#064e3b]">
                   {statusMessage}
                 </p>
               )}
 
               {history.length === 0 ? (
-                <p className={`mt-4 rounded-lg border border-dashed p-4 text-sm ${settings.high_contrast ? "border-white/30 text-[#dce8f3]" : "border-[#d8e2ea] text-[#52627f]"}`}>
+                <p
+                  className={`mt-4 rounded-xl border border-dashed p-4 text-sm font-semibold ${
+                    settings.high_contrast ? "border-white/30 text-[#dce8f3]" : "border-[#a7f3d0] text-[#047857]"
+                  }`}
+                >
                   Nenhuma adaptação salva ainda.
                 </p>
               ) : (
@@ -171,17 +196,17 @@ export default function HistoryPage() {
                   {history.map((item) => (
                     <article
                       key={item.id}
-                      className={`min-w-0 rounded-lg border p-4 ${
-                        settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#d8e2ea] bg-[#fbfcf8]"
+                      className={`min-w-0 rounded-2xl border p-4 ${
+                        settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#a7f3d0] bg-white/90"
                       }`}
                     >
-                      <h2 className="truncate font-black" title={item.fileName}>
+                      <h2 className="truncate font-extrabold" title={item.fileName}>
                         {item.fileName}
                       </h2>
-                      <p className={`mt-2 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+                      <p className={`mt-2 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                         Páginas {item.startPage}-{item.endPage}
                       </p>
-                      <p className={`mt-1 text-sm ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
+                      <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
                         {formatHistoryDate(item.createdAt)}
                       </p>
 
@@ -192,7 +217,8 @@ export default function HistoryPage() {
                             setSelectedItem(item);
                             setStatusMessage("");
                           }}
-                          className="rounded-lg bg-[#0f2d4a] px-3 py-2 text-sm font-black text-white transition hover:bg-[#173f66]"
+                          className="rounded-xl px-3 py-2 text-sm font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
+                          style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
                         >
                           Abrir
                         </button>
@@ -200,14 +226,14 @@ export default function HistoryPage() {
                           type="button"
                           onClick={() => void handleDownload(item)}
                           disabled={isDownloadGenerating}
-                          className="rounded-lg border border-[#b9cbd9] bg-white px-3 py-2 text-sm font-black text-[#0f2d4a] transition hover:bg-[#f4f8fb] disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-xl border border-[#a7f3d0] bg-white/80 px-3 py-2 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {downloadState.id === item.id && downloadState.status === "generating" ? "Gerando..." : "Baixar PDF"}
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(item)}
-                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-black text-red-700 transition hover:bg-red-100"
+                          onClick={() => void handleDelete(item)}
+                          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100"
                         >
                           Excluir
                         </button>
@@ -216,7 +242,7 @@ export default function HistoryPage() {
                       {downloadState.id === item.id && downloadState.message && (
                         <p
                           className={`mt-3 text-sm font-bold ${
-                            downloadState.status === "error" ? "text-red-700" : "text-[#2c6e63]"
+                            downloadState.status === "error" ? "text-red-700" : "text-[#064e3b]"
                           }`}
                         >
                           {downloadState.message}

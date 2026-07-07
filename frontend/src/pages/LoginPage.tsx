@@ -1,8 +1,7 @@
-import { useCallback, useState, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AppLogo from "../components/AppLogo";
-import GoogleSignInButton from "../components/GoogleSignInButton";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
@@ -22,40 +21,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-
-  const handleGoogleCredential = useCallback(
-    async (credential: string) => {
-      setError("");
-      setGoogleLoading(true);
-
-      try {
-        const res = await fetch(`${API_BASE}/auth/google`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential }),
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.detail || "Não foi possível entrar com Google.");
-        }
-
-        const data = await res.json();
-        login({ username: data.username, token: data.access_token });
-        navigate(redirectTo);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Não foi possível entrar com Google.");
-      } finally {
-        setGoogleLoading(false);
-      }
-    },
-    [login, navigate, redirectTo],
-  );
-
-  const handleGoogleError = useCallback((message: string) => {
-    setError(message);
-  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -92,7 +57,7 @@ export default function LoginPage() {
       }}
     >
       <div className="bg-white/80 backdrop-blur-md rounded-3xl px-8 py-10 w-full max-w-sm shadow-[0_8px_32px_rgba(16,185,129,0.15)] border border-white/85">
-        <div className="flex flex-col items-center mb-8">
+        <div className="flex flex-col items-center mb-6">
           <div className="mb-3 flex h-16 items-center justify-center">
             <AppLogo />
           </div>
@@ -100,21 +65,19 @@ export default function LoginPage() {
           <p className="text-sm font-semibold text-[#047857]">Salve histórico e preferências</p>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <GoogleSignInButton
-            text="signin_with"
-            onCredential={handleGoogleCredential}
-            onError={handleGoogleError}
-          />
-          {googleLoading && <p className="text-center text-sm font-semibold text-[#047857]">Entrando com Google...</p>}
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200" />
-            <span className="text-xs font-bold text-gray-400">ou</span>
-            <div className="h-px flex-1 bg-gray-200" />
-          </div>
-        </div>
+        <Link
+          to="/"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[#a7f3d0] bg-white/60 px-4 py-2.5 text-sm font-bold text-[#047857] transition-colors hover:bg-[#d1fae5] mb-4"
+        >
+          Continuar sem conta
+          <span aria-hidden>→</span>
+        </Link>
 
-        <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+        <p className="mb-4 text-center text-xs text-[#6b7280]">
+          Login é opcional — adapte PDFs sem criar conta.
+        </p>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold text-[#065f46]">USUÁRIO</label>
             <input
@@ -144,19 +107,12 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={loading || googleLoading}
+            disabled={loading}
             className="w-full text-white font-bold py-3 rounded-xl transition-opacity disabled:opacity-60 shadow-[0_4px_14px_rgba(16,185,129,0.30)] mt-1"
             style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>
-
-          <Link
-            to="/"
-            className="text-sm text-[#064e3b] font-bold text-center hover:text-[#10b981] transition-colors"
-          >
-            Voltar ao leitor
-          </Link>
 
           <Link
             to="/register"

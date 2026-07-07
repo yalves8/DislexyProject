@@ -1,4 +1,3 @@
-import ReadingRuler from "./ReadingRuler";
 import type { ReadingSettingsValue } from "./ReadingSettings";
 import type { RagMetadata } from "../services/pdfReaderApi";
 
@@ -44,8 +43,38 @@ interface Props {
   downloadStatus?: "idle" | "generating" | "success" | "error";
 }
 
-const sectionTitleClass = "text-lg font-black text-[#0f2d4a]";
-const softCardClass = "rounded-lg border border-[#d8e2ea] bg-white p-4 shadow-sm";
+const sectionTitleClass = "border-l-4 border-[#10b981] pl-3 text-xl font-extrabold text-[#064e3b]";
+const softCardClass = "rounded-2xl border border-[#a7f3d0] bg-white/80 p-6";
+
+function Md({ text }: { text: string }) {
+  // Strip "* " bullet markers at start of string or after newlines
+  const processed = text.replace(/^\*\s+/gm, "");
+  const parts: (string | React.JSX.Element)[] = [];
+  // Order matters: **bold** before *italic* so ** is consumed first
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\*(?!\*)[^*\n]+\*(?!\*))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(processed)) !== null) {
+    if (match.index > lastIndex) parts.push(processed.slice(lastIndex, match.index));
+    const m = match[0];
+    if (m.startsWith("**")) {
+      parts.push(<strong key={key++}>{m.slice(2, -2)}</strong>);
+    } else if (m.startsWith("`")) {
+      parts.push(
+        <code key={key++} className="rounded bg-[#d1fae5] px-1 font-mono text-[0.875em] text-[#047857]">
+          {m.slice(1, -1)}
+        </code>,
+      );
+    } else {
+      // *label* → semibold accent (avoid italic which is harder to read for dyslexics)
+      parts.push(<span key={key++} className="font-semibold text-[#047857]">{m.slice(1, -1)}</span>);
+    }
+    lastIndex = match.index + m.length;
+  }
+  if (lastIndex < processed.length) parts.push(processed.slice(lastIndex));
+  return <>{parts}</>;
+}
 
 function parseVisualMap(visualMap: string, fallback?: StudyCard[]): StudyCard[] {
   const labels = Array.from(visualMap.matchAll(/\[([^\]]+)\]/g)).map((match) => match[1].trim());
@@ -136,16 +165,14 @@ export default function AdaptedStudyMaterial({
   const steps = safeStringList(material.steps, ["Leia o resumo.", "Revise os cards.", "Responda ao quiz."]);
   const studyGuide = safeStringList(material.studyGuide, ["Comece pelo resumo.", "Depois revise o glossário.", "Finalize com o quiz."]);
   const quiz = safeQuiz(material.quiz);
-  const ragContexts = Array.isArray(material.rag?.contexts) ? material.rag.contexts.filter(Boolean) : [];
-  const ragTopK = Number.isFinite(Number(material.rag?.topK)) ? Number(material.rag.topK) : ragContexts.length;
   const mapNodes = parseVisualMap(material.visualMap || "", material.conceptMap);
 
   return (
     <article
-      className={`relative overflow-visible rounded-lg border p-5 [overflow-wrap:anywhere] ${
+      className={`relative overflow-visible rounded-2xl border p-6 [overflow-wrap:anywhere] ${
         highContrast
           ? "border-white bg-[#07111f] text-white"
-          : "border-[#d8e2ea] bg-[#fbfcf8] text-[#12324a]"
+          : "border-white/60 bg-white/80 text-[#064e3b] shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
       }`}
       style={{
         fontFamily: settings.font_preference,
@@ -154,26 +181,33 @@ export default function AdaptedStudyMaterial({
         letterSpacing: `${settings.letter_spacing}px`,
       }}
     >
-      <div className="relative z-10 flex min-w-0 flex-col gap-5">
-        <header className="flex min-w-0 flex-col gap-4 border-b border-[#d8e2ea] pb-5 md:flex-row md:items-start md:justify-between">
+      <div className="relative z-10 flex min-w-0 flex-col gap-10">
+        <header
+          className={`flex min-w-0 flex-col gap-4 border-b pb-6 md:flex-row md:items-start md:justify-between ${
+            highContrast ? "border-white/30" : "border-[#a7f3d0]"
+          }`}
+        >
           <div className="min-w-0">
-            <p className={`text-sm font-bold ${highContrast ? "text-[#9ee6c5]" : "text-[#2c6e63]"}`}>
+            <p className={`text-sm font-bold ${highContrast ? "text-[#9ee6c5]" : "text-[#10b981]"}`}>
               Material de estudo adaptado
             </p>
-            <h2 className={`mt-1 break-words text-2xl font-black ${highContrast ? "text-white" : "text-[#061c44]"}`}>
+            <h2 className={`mt-1 break-words text-2xl font-extrabold ${highContrast ? "text-white" : "text-[#064e3b]"}`}>
               {material.title}
             </h2>
-            <p className={`mt-2 truncate text-sm ${highContrast ? "text-[#dce8f3]" : "text-[#52627f]"}`} title={material.sourceLabel}>
+            <p
+              className={`mt-2 truncate text-sm font-semibold ${highContrast ? "text-[#dce8f3]" : "text-[#047857]"}`}
+              title={material.sourceLabel}
+            >
               {material.sourceLabel}
             </p>
           </div>
 
           <div className="flex shrink-0 items-start gap-2 md:items-end">
             <p
-              className={`hidden rounded-lg px-3 py-2 text-sm font-bold sm:block ${
+              className={`hidden rounded-xl px-3 py-2 text-sm font-bold sm:block ${
                 highContrast
                   ? "border border-[#9ee6c5] text-[#9ee6c5]"
-                  : "border border-[#b9d7c7] bg-[#eef8f1] text-[#2c6e63]"
+                  : "border border-[#6ee7b7] bg-[#d1fae5] text-[#064e3b]"
               }`}
             >
               Adaptação concluída
@@ -184,10 +218,10 @@ export default function AdaptedStudyMaterial({
               disabled={isDownloading || !onDownload}
               aria-label="Baixar adaptação em PDF"
               title="Baixar adaptação em PDF"
-              className={`inline-flex h-11 w-11 items-center justify-center rounded-lg border text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                 highContrast
                   ? "border-white/40 bg-white/5 text-white hover:bg-white/10"
-                  : "border-[#b9cbd9] bg-white text-[#0f2d4a] hover:bg-[#eef7ff]"
+                  : "border-[#a7f3d0] bg-white/80 text-[#064e3b] hover:bg-[#f0fdf4]"
               }`}
             >
               {isDownloading ? (
@@ -205,205 +239,231 @@ export default function AdaptedStudyMaterial({
 
         {downloadMessage && (
           <p
-            className={`rounded-lg border px-4 py-3 text-sm font-bold ${
+            className={`rounded-xl border px-4 py-3 text-sm font-bold ${
               downloadStatus === "error"
                 ? "border-red-200 bg-red-50 text-red-700"
                 : highContrast
                   ? "border-white/30 bg-white/5 text-[#9ee6c5]"
-                  : "border-[#b9d7c7] bg-[#eef8f1] text-[#2c6e63]"
+                  : "border-[#6ee7b7] bg-[#d1fae5] text-[#064e3b]"
             }`}
           >
             {downloadMessage}
           </p>
         )}
 
-        <section className={highContrast ? "rounded-lg border border-white/30 p-4" : "rounded-lg bg-[#e9f7ef] p-4"}>
-          <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Resumo simples</h3>
-          <p className="mt-3 max-w-3xl break-words">{material.summary}</p>
+        {/* Resumo simples */}
+        <section className={highContrast ? "rounded-2xl border border-white/30 p-6" : "rounded-2xl bg-[#d1fae5] p-6"}>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Resumo simples
+          </h3>
+          <p className="mt-5 max-w-3xl break-words text-base leading-loose">
+            <Md text={material.summary} />
+          </p>
         </section>
 
+        {/* Ideias principais — 2 colunas máximo */}
         <section>
-          <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Ideias principais</h3>
-          <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Ideias principais
+          </h3>
+          <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-2">
             {keyIdeas.map((idea, index) => (
               <div
                 key={`${idea.title}-${index}`}
                 className={
                   highContrast
-                    ? "rounded-lg border border-white/30 bg-white/5 p-4"
-                    : "rounded-lg border border-[#c7deed] bg-[#eef7ff] p-4"
+                    ? "rounded-2xl border border-white/30 bg-white/5 p-5"
+                    : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
                 }
               >
-                <h4 className="break-words font-black">{idea.title}</h4>
-                <p className="mt-2 break-words text-sm">{idea.description}</p>
+                <h4 className="break-words text-base font-extrabold">
+                  <Md text={idea.title} />
+                </h4>
+                <p className="mt-3 break-words text-base leading-loose">
+                  <Md text={idea.description} />
+                </p>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Termos difíceis</h3>
-            <dl className="mt-3 flex flex-col gap-3">
-              {glossary.map((item, index) => (
-                <div key={`${item.term}-${index}`}>
-                  <dt className="break-words font-black">{item.term}</dt>
-                  <dd className="mt-1 break-words text-sm">{item.definition}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
-
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Passo a passo</h3>
-            <ol className="mt-3 flex flex-col gap-3">
-              {steps.map((step, index) => (
-                <li key={`${step}-${index}`} className="flex gap-3">
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm font-black ${
-                      highContrast ? "bg-white text-[#07111f]" : "bg-[#0f2d4a] text-white"
-                    }`}
-                  >
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 break-words">{step}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
+        {/* Termos difíceis — full width */}
+        <section className={highContrast ? "rounded-2xl border border-white/30 p-6" : softCardClass}>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Termos difíceis
+          </h3>
+          <dl className="mt-5 grid gap-5 sm:grid-cols-2">
+            {glossary.map((item, index) => (
+              <div
+                key={`${item.term}-${index}`}
+                className={highContrast ? "rounded-xl bg-white/5 p-4" : "rounded-xl bg-[#f0fdf4] p-4"}
+              >
+                <dt className="break-words text-base font-extrabold">
+                  <Md text={item.term} />
+                </dt>
+                <dd className="mt-2 break-words text-base leading-loose">
+                  <Md text={item.definition} />
+                </dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
-        <section className={highContrast ? "rounded-lg border border-white/30 p-4" : "rounded-lg border border-[#d8e2ea] bg-white p-4"}>
-          <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Mapa conceitual</h3>
-          <div className="mt-4 grid min-w-0 gap-3 lg:grid-cols-3">
+        {/* Passo a passo — full width */}
+        <section className={highContrast ? "rounded-2xl border border-white/30 p-6" : softCardClass}>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Passo a passo
+          </h3>
+          <ol className="mt-5 flex flex-col gap-6">
+            {steps.map((step, index) => (
+              <li key={`${step}-${index}`} className="flex gap-5">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white ${
+                    highContrast ? "bg-white !text-[#07111f]" : ""
+                  }`}
+                  style={highContrast ? undefined : { background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                >
+                  {index + 1}
+                </span>
+                <span className="min-w-0 break-words pt-1 text-base leading-loose">
+                  <Md text={step} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        {/* Mapa conceitual */}
+        <section className={highContrast ? "rounded-2xl border border-white/30 p-6" : "rounded-2xl border border-[#a7f3d0] bg-white/80 p-6"}>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Mapa conceitual
+          </h3>
+          <div className="mt-5 grid min-w-0 gap-4 lg:grid-cols-3">
             {mapNodes.map((node, index) => (
               <div key={`${node.title}-${index}`} className="flex min-w-0 items-stretch gap-3">
                 <div
-                  className={`flex min-w-0 flex-1 flex-col justify-center rounded-lg border p-4 ${
+                  className={`flex min-w-0 flex-1 flex-col justify-center rounded-xl border p-5 ${
                     highContrast
                       ? "border-white/40 bg-white/5"
                       : index === 1
-                        ? "border-[#f0c56b] bg-[#fff4d6]"
-                        : "border-[#b9d7c7] bg-[#eef8f1]"
+                        ? "border-[#fde68a] bg-[#fef9c3]"
+                        : "border-[#a7f3d0] bg-[#d1fae5]"
                   }`}
                 >
-                  <h4 className="break-words font-black">{node.title}</h4>
-                  <p className="mt-2 break-words text-sm">{node.description}</p>
+                  <h4 className="break-words text-base font-extrabold">
+                    <Md text={node.title} />
+                  </h4>
+                  <p className="mt-2 break-words text-sm leading-loose">
+                    <Md text={node.description} />
+                  </p>
                 </div>
                 {index < mapNodes.length - 1 && (
-                  <span className="hidden items-center text-2xl font-black text-[#2c6e63] lg:flex">→</span>
+                  <span className="hidden items-center text-2xl font-bold text-[#10b981] lg:flex">→</span>
                 )}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Exemplos práticos</h3>
-            <div className="mt-3 flex flex-col gap-3">
-              {examples.map((example, index) => (
-                <div key={`${example.title}-${index}`} className={highContrast ? "rounded-lg bg-white/5 p-3" : "rounded-lg bg-[#f4f8fb] p-3"}>
-                  <h4 className="break-words font-black">{example.title}</h4>
-                  <p className="mt-1 break-words text-sm">{example.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Fórmulas importantes</h3>
-            <div className="mt-3 flex flex-col gap-3">
-              {formulas.map((formula, index) => (
-                <div key={`${formula.title}-${index}`} className={highContrast ? "rounded-lg bg-white/5 p-3" : "rounded-lg bg-[#fff7df] p-3"}>
-                  <p className="break-words font-black">{formula.title}</p>
-                  <p className="mt-1 break-words text-sm">{formula.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Guia de estudo</h3>
-            <ul className="mt-3 flex flex-col gap-3">
-              {studyGuide.map((item, index) => (
-                <li key={`${item}-${index}`} className="flex gap-3">
-                  <span className="font-black text-[#2c6e63]">✓</span>
-                  <span className="min-w-0 break-words">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className={highContrast ? "rounded-lg border border-white/30 p-4" : softCardClass}>
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>Quiz rápido</h3>
-            <div className="mt-3 flex flex-col gap-3">
-              {quiz.map((item, index) => (
-                <details key={`${item.question}-${index}`} className={highContrast ? "rounded-lg bg-white/5 p-3" : "rounded-lg bg-[#f4f8fb] p-3"}>
-                  <summary className="cursor-pointer break-words font-black">{item.question}</summary>
-                  <p className="mt-2 break-words text-sm">{item.answer}</p>
-                </details>
-              ))}
-            </div>
+        {/* Exemplos práticos — 2 colunas */}
+        <section>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Exemplos práticos
+          </h3>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            {examples.map((example, index) => (
+              <div
+                key={`${example.title}-${index}`}
+                className={
+                  highContrast
+                    ? "rounded-2xl border border-white/30 bg-white/5 p-5"
+                    : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
+                }
+              >
+                <h4 className="break-words text-base font-extrabold">
+                  <Md text={example.title} />
+                </h4>
+                <p className="mt-3 break-words text-base leading-loose">
+                  <Md text={example.description} />
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
-        <details className={highContrast ? "rounded-lg border border-white/30 p-4" : "rounded-lg border border-[#d8e2ea] bg-white p-4"}>
-          <summary className="cursor-pointer font-black">Detalhes técnicos da adaptação</summary>
-          <div className="mt-4">
-            <h3 className={highContrast ? "text-lg font-black text-white" : sectionTitleClass}>
-              Base de acessibilidade consultada
-            </h3>
-            <p className={`mt-2 text-sm ${highContrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-              {ragContexts.length} trecho{ragContexts.length === 1 ? "" : "s"} recuperado
-              {ragContexts.length === 1 ? "" : "s"}. Essas diretrizes orientaram a forma da adaptação.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2 text-sm">
-              <span className={highContrast ? "rounded-lg bg-white/10 px-3 py-2 font-bold" : "rounded-lg bg-[#eef8f1] px-3 py-2 font-bold text-[#2c6e63]"}>
-                Recuperador: {material.rag?.retriever || "local-keyword"}
-              </span>
-              <span className={highContrast ? "rounded-lg bg-white/10 px-3 py-2 font-bold" : "rounded-lg bg-[#f4f8fb] px-3 py-2 font-bold text-[#52627f]"}>
-                TopK: {ragTopK}
-              </span>
-              <span className={highContrast ? "rounded-lg bg-white/10 px-3 py-2 font-bold" : "rounded-lg bg-[#f4f8fb] px-3 py-2 font-bold text-[#52627f]"}>
-                Modo: {material.mode === "ai_real" ? "IA real" : "fallback"}
-              </span>
-            </div>
-            {material.notice && (
-              <p className={`mt-3 text-sm ${highContrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                {material.notice}
-              </p>
-            )}
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {ragContexts.map((context, index) => (
-                <div
-                  key={context.id || `rag-context-${index + 1}`}
-                  className={
-                    highContrast
-                      ? "rounded-lg border border-white/30 bg-white/5 p-3"
-                      : "rounded-lg border border-[#d8e2ea] bg-[#fbfcf8] p-3"
-                  }
+        {/* Fórmulas importantes — 2 colunas */}
+        <section>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Fórmulas importantes
+          </h3>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            {formulas.map((formula, index) => (
+              <div
+                key={`${formula.title}-${index}`}
+                className={
+                  highContrast
+                    ? "rounded-2xl bg-white/5 p-5"
+                    : "rounded-2xl border border-[#fde68a] bg-[#fef9c3] p-5"
+                }
+              >
+                <p className="break-words text-base font-extrabold">
+                  <Md text={formula.title} />
+                </p>
+                <p className="mt-3 break-words text-base leading-loose">
+                  <Md text={formula.description} />
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Guia de estudo — full width */}
+        <section className={highContrast ? "rounded-2xl border border-white/30 p-6" : softCardClass}>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Guia de estudo
+          </h3>
+          <ul className="mt-5 flex flex-col gap-5">
+            {studyGuide.map((item, index) => (
+              <li key={`${item}-${index}`} className="flex gap-4">
+                <span className="mt-1 shrink-0 text-base font-bold text-[#10b981]">✓</span>
+                <span className="min-w-0 break-words text-base leading-loose">
+                  <Md text={item} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* Quiz rápido — full width */}
+        <section>
+          <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
+            Quiz rápido
+          </h3>
+          <div className="mt-5 flex flex-col gap-5">
+            {quiz.map((item, index) => (
+              <details
+                key={`${item.question}-${index}`}
+                className={
+                  highContrast
+                    ? "rounded-2xl border border-white/30 bg-white/5 p-5"
+                    : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
+                }
+              >
+                <summary className="cursor-pointer break-words text-base font-extrabold leading-loose">
+                  <Md text={item.question} />
+                </summary>
+                <p
+                  className={`mt-4 break-words border-t pt-4 text-base leading-loose ${
+                    highContrast ? "border-white/20" : "border-[#a7f3d0]"
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="break-words font-black">{context.title || "Diretriz de acessibilidade"}</h4>
-                    <span className="shrink-0 rounded-lg bg-[#eef8f1] px-2 py-1 text-xs font-black text-[#2c6e63]">
-                      {Number.isFinite(Number(context.score)) ? Number(context.score).toFixed(2) : "0.00"}
-                    </span>
-                  </div>
-                  <p className={`mt-1 break-words text-xs ${highContrast ? "text-[#dce8f3]" : "text-[#52627f]"}`}>
-                    {context.source || "base-local"}
-                  </p>
-                  <p className="mt-2 break-words text-sm">{context.contentPreview || "Trecho recuperado da base local de acessibilidade."}</p>
-                </div>
-              ))}
-            </div>
+                  <Md text={item.answer} />
+                </p>
+              </details>
+            ))}
           </div>
-        </details>
+        </section>
       </div>
-
-      <ReadingRuler enabled={settings.ruler_enabled} overlayColor={settings.overlay_color} />
     </article>
   );
 }

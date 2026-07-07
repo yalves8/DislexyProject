@@ -12,7 +12,7 @@ type RGB = [number, number, number];
 
 const PAGE_WIDTH = 595;
 const PAGE_HEIGHT = 842;
-const MARGIN = 46;
+const MARGIN = 56;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 
 const COLORS = {
@@ -35,8 +35,12 @@ interface PdfBuilder {
 function plainText(value: string): string {
   const normalized = value
     .normalize("NFC")
-    .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*(?!\*)([^*\n]+)\*(?!\*)/g, "$1")
+    .replace(/^\*\s+/gm, "")
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
     .replace(/[–—]/g, "-")
     .replace(/[•✓]/g, "-")
     .replace(/→/g, " -> ")
@@ -74,7 +78,7 @@ function wrapText(text: string, size: number, width: number): string[] {
   const clean = plainText(text);
   if (!clean) return [];
 
-  const maxChars = Math.max(18, Math.floor(width / (size * 0.48)));
+  const maxChars = Math.max(18, Math.floor(width / (size * 0.60)));
   const words = clean.split(" ");
   const lines: string[] = [];
   let current = "";
@@ -106,7 +110,7 @@ function wrapText(text: string, size: number, width: number): string[] {
 }
 
 function lineHeight(size: number): number {
-  return size * 1.35;
+  return size * 1.5;
 }
 
 function startBuilder(): PdfBuilder {
@@ -162,18 +166,23 @@ function drawSectionTitle(builder: PdfBuilder, title: string) {
 }
 
 function drawBox(builder: PdfBuilder, title: string, body: string, fill: RGB = COLORS.white) {
-  const pad = 14;
-  const bodyWidth = CONTENT_WIDTH - pad * 2;
-  const height = 18 + textHeight(title, 13, bodyWidth) + textHeight(body, 12, bodyWidth) + pad * 2;
-  ensureSpace(builder, height + 10);
+  const hPad = 18;
+  const bodyWidth = CONTENT_WIDTH - hPad * 2;
+  const titleH = textHeight(title, 13, bodyWidth);
+  const bodyH = textHeight(body, 12, bodyWidth);
+  // topOffset = 28: visual top padding ≈ 18pt (28 minus cap-height ~10pt of 13pt text)
+  // height formula subtracts the trailing lineHeight(12) that drawWrappedText leaves,
+  // then adds 18pt of visual bottom padding: 28 + gap(10) + bodyH - (lh(12)-desc(3)) + 18 = 44+bodyH
+  const height = Math.round(44 + titleH + bodyH);
+  ensureSpace(builder, height + 14);
 
   const top = builder.y;
   drawRect(builder, MARGIN, top, CONTENT_WIDTH, height, fill);
-  builder.y -= pad + 3;
-  drawWrappedText(builder, title, MARGIN + pad, bodyWidth, 13, { bold: true, fill: COLORS.ink });
-  builder.y -= 5;
-  drawWrappedText(builder, body, MARGIN + pad, bodyWidth, 12, { fill: COLORS.muted });
-  builder.y = top - height - 12;
+  builder.y -= 28;
+  drawWrappedText(builder, title, MARGIN + hPad, bodyWidth, 13, { bold: true, fill: COLORS.ink });
+  builder.y -= 10;
+  drawWrappedText(builder, body, MARGIN + hPad, bodyWidth, 12, { fill: COLORS.muted });
+  builder.y = top - height - 14;
 }
 
 function drawCards(builder: PdfBuilder, cards: StudyCard[], fill: RGB = COLORS.blueSoft) {
@@ -184,19 +193,22 @@ function drawCards(builder: PdfBuilder, cards: StudyCard[], fill: RGB = COLORS.b
 
 function drawNumberedList(builder: PdfBuilder, items: string[]) {
   items.filter(Boolean).forEach((item, index) => {
-    const pad = 12;
-    const numberWidth = 30;
-    const bodyWidth = CONTENT_WIDTH - numberWidth - pad * 3;
-    const height = Math.max(48, textHeight(item, 12, bodyWidth) + pad * 2);
-    ensureSpace(builder, height + 8);
+    const pad = 16;
+    const numberWidth = 34;
+    const bodyWidth = CONTENT_WIDTH - numberWidth - pad * 2 - pad;
+    const itemH = textHeight(item, 12, bodyWidth);
+    // topOffset 26pt: visual top pad ~18pt (26 minus cap-height ~8pt)
+    // height: topOffset + itemH - (lh(12)-desc(3)) + bot_pad(18) = 26+itemH-15+18 = 29+itemH
+    const height = Math.max(58, itemH + 29);
+    ensureSpace(builder, height + 10);
 
     const top = builder.y;
     drawRect(builder, MARGIN, top, CONTENT_WIDTH, height, COLORS.white);
-    drawRect(builder, MARGIN + pad, top - pad, 24, 24, COLORS.green, COLORS.green);
-    drawText(builder, String(index + 1), MARGIN + pad + 8, top - pad - 17, 11, { bold: true, fill: COLORS.white });
-    builder.y = top - pad - 8;
-    drawWrappedText(builder, item, MARGIN + numberWidth + pad * 2, bodyWidth, 12, { fill: COLORS.ink });
-    builder.y = top - height - 8;
+    drawRect(builder, MARGIN + pad, top - pad, 26, 26, COLORS.green, COLORS.green);
+    drawText(builder, String(index + 1), MARGIN + pad + 9, top - pad - 18, 11, { bold: true, fill: COLORS.white });
+    builder.y = top - 26;
+    drawWrappedText(builder, item, MARGIN + numberWidth + pad, bodyWidth, 12, { fill: COLORS.ink });
+    builder.y = top - height - 10;
   });
 }
 
@@ -214,8 +226,8 @@ function drawVisualMap(builder: PdfBuilder, material: AdaptedStudyMaterialData) 
   }
 
   const pad = 12;
-  const boxHeight = 42;
-  const totalHeight = labels.length * boxHeight + (labels.length - 1) * 18 + pad * 2;
+  const boxHeight = 52;
+  const totalHeight = labels.length * boxHeight + (labels.length - 1) * 14 + pad * 2;
   ensureSpace(builder, totalHeight + 10);
 
   const top = builder.y;
@@ -226,6 +238,8 @@ function drawVisualMap(builder: PdfBuilder, material: AdaptedStudyMaterialData) 
     const x = MARGIN + pad;
     const yTop = builder.y;
     drawRect(builder, x, yTop, CONTENT_WIDTH - pad * 2, boxHeight, index === 0 ? COLORS.white : COLORS.blueSoft, COLORS.border);
+    // offset 16pt from box top so visual padding ≈ 8pt for 12pt text (cap-height ~8pt)
+    builder.y = yTop - 16;
     drawWrappedText(builder, label, x + 12, CONTENT_WIDTH - pad * 4, 12, { bold: index === 0, fill: COLORS.ink });
     builder.y = yTop - boxHeight - 8;
     if (index < labels.length - 1) {
@@ -238,15 +252,23 @@ function drawVisualMap(builder: PdfBuilder, material: AdaptedStudyMaterialData) 
 }
 
 function drawHeader(builder: PdfBuilder, input: AdaptationPdfInput) {
-  const height = 116;
-  drawRect(builder, MARGIN, builder.y, CONTENT_WIDTH, height, COLORS.greenSoft);
-  builder.y -= 20;
-  drawWrappedText(builder, input.material.title, MARGIN + 16, CONTENT_WIDTH - 32, 21, { bold: true, fill: COLORS.ink });
-  builder.y -= 7;
-  drawWrappedText(builder, `Arquivo original: ${input.fileName}`, MARGIN + 16, CONTENT_WIDTH - 32, 11, { fill: COLORS.muted });
-  drawWrappedText(builder, `Páginas ${input.startPage}-${input.endPage} · ${formatDate(input.createdAt)}`, MARGIN + 16, CONTENT_WIDTH - 32, 11, { fill: COLORS.muted });
-  drawText(builder, "Adaptação acessível para estudo", MARGIN + 16, builder.y - 4, 11, { bold: true, fill: COLORS.green });
-  builder.y = PAGE_HEIGHT - MARGIN - height - 22;
+  const pad = 20;
+  const innerWidth = CONTENT_WIDTH - pad * 2;
+  const titleH = textHeight(input.material.title, 21, innerWidth);
+  const filenameH = textHeight(`Arquivo original: ${input.fileName}`, 11, innerWidth);
+  const metaH = lineHeight(11) * 2; // pages/date + tagline
+  const height = Math.round(pad + titleH + 12 + filenameH + metaH + pad);
+
+  const top = builder.y;
+  drawRect(builder, MARGIN, top, CONTENT_WIDTH, height, COLORS.greenSoft);
+  builder.y -= pad;
+  drawWrappedText(builder, input.material.title, MARGIN + pad, innerWidth, 21, { bold: true, fill: COLORS.ink });
+  builder.y -= 12;
+  drawWrappedText(builder, `Arquivo original: ${input.fileName}`, MARGIN + pad, innerWidth, 11, { fill: COLORS.muted });
+  drawWrappedText(builder, `Páginas ${input.startPage}-${input.endPage} · ${formatDate(input.createdAt)}`, MARGIN + pad, innerWidth, 11, { fill: COLORS.muted });
+  builder.y -= 4;
+  drawText(builder, "Adaptação acessível para estudo", MARGIN + pad, builder.y, 11, { bold: true, fill: COLORS.green });
+  builder.y = top - height - 24;
 }
 
 function formatDate(value: string): string {
