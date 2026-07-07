@@ -33,16 +33,13 @@ export default function AccessibilityDrawer({
     <div className="fixed inset-0 z-50 flex justify-end bg-black/30" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Fechar ajustes" onClick={onClose} />
 
-      <aside className="relative flex h-full w-full max-w-md flex-col gap-5 overflow-y-auto bg-white p-6 shadow-2xl">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-[#1e3a5f]">Ajustes de leitura</h2>
-            <p className="mt-1 text-sm text-gray-500">Escolha como fica melhor para você.</p>
-          </div>
+      <aside className="relative flex h-full w-full max-w-xs flex-col gap-6 overflow-y-auto bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-bold text-[#064e3b]">Leitura</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full px-3 py-1 text-2xl leading-none text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
+            className="rounded-full px-3 py-1 text-2xl leading-none text-gray-400 transition hover:bg-gray-100 hover:text-gray-700"
             aria-label="Fechar"
           >
             ×
@@ -50,28 +47,22 @@ export default function AccessibilityDrawer({
         </div>
 
         {loading ? (
-          <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">Carregando ajustes...</p>
+          <p className="rounded-xl bg-gray-50 p-4 text-sm text-gray-500">Carregando...</p>
         ) : (
           <ReadingSettings value={settings} onChange={onChange} />
         )}
 
         {error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
-        <div className="mt-auto flex gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
-          >
-            Cancelar
-          </button>
+        <div className="mt-auto pt-2">
           <button
             type="button"
             onClick={handleSave}
             disabled={saving || loading}
-            className="flex-1 rounded-xl bg-[#1e3a5f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#172e4b] disabled:opacity-60"
+            className="w-full rounded-xl px-4 py-3 text-sm font-bold text-white transition disabled:opacity-60"
+            style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
           >
-            {saving ? "Salvando..." : "Salvar ajustes"}
+            {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
       </aside>
