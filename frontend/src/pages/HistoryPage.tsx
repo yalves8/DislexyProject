@@ -221,7 +221,6 @@ export default function HistoryPage() {
             isDownloading={downloadState.id === selectedItem.id && downloadState.status === "generating"}
             downloadMessage={downloadState.id === selectedItem.id ? downloadState.message : ""}
             downloadStatus={downloadState.id === selectedItem.id ? downloadState.status : "idle"}
-            onToggleRuler={() => setSettings((s) => ({ ...s, ruler_enabled: true }))}
           />
         )}
       </main>

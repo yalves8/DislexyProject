@@ -42,29 +42,35 @@ interface Props {
   isDownloading?: boolean;
   downloadMessage?: string;
   downloadStatus?: "idle" | "generating" | "success" | "error";
-  onToggleRuler?: () => void;
 }
 
 const LINE_HEIGHT_PX = 32; // approx line height at default settings (18px * 1.8)
 const RULER_THRESHOLD_LINES = 5;
 
-function RulerButton({ onClick, highContrast }: { onClick: () => void; highContrast: boolean }) {
+const RULER_H = 40;
+
+function RulerButton({ onClick, highContrast, active }: { onClick: () => void; highContrast: boolean; active: boolean }) {
+  const label = active ? "Desativar régua" : "Ativar régua";
   return (
     <button
       type="button"
       onClick={onClick}
-      title="Ativar régua de leitura"
-      aria-label="Ativar régua de leitura"
+      title={label}
+      aria-label={label}
       className={`mb-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
-        highContrast
-          ? "border border-white/30 bg-white/5 text-[#9ee6c5] hover:bg-white/10"
-          : "border border-[#a7f3d0] bg-[#d1fae5] text-[#047857] hover:bg-[#bbf7d0]"
+        active
+          ? highContrast
+            ? "border border-white/50 bg-white/15 text-white hover:bg-white/25"
+            : "border border-[#10b981] bg-[#10b981] text-white hover:bg-[#059669]"
+          : highContrast
+            ? "border border-white/30 bg-white/5 text-[#9ee6c5] hover:bg-white/10"
+            : "border border-[#a7f3d0] bg-[#d1fae5] text-[#047857] hover:bg-[#bbf7d0]"
       }`}
     >
       <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
       </svg>
-      Ativar régua
+      {label}
     </button>
   );
 }
@@ -72,30 +78,72 @@ function RulerButton({ onClick, highContrast }: { onClick: () => void; highContr
 function CardBody({
   children,
   className,
-  rulerEnabled,
-  onToggleRuler,
+  overlayColor = "#FFF3CD",
   highContrast,
 }: {
   children: React.ReactNode;
   className?: string;
-  rulerEnabled: boolean;
-  onToggleRuler?: () => void;
+  overlayColor?: string;
   highContrast: boolean;
 }) {
+  const outerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isLong, setIsLong] = useState(false);
+  const [rulerEnabled, setRulerEnabled] = useState(false);
+  const [rulerY, setRulerY] = useState<number | null>(null);
 
   useEffect(() => {
     if (!contentRef.current) return;
     setIsLong(contentRef.current.scrollHeight / LINE_HEIGHT_PX > RULER_THRESHOLD_LINES);
   }, []);
 
+  useEffect(() => {
+    if (!rulerEnabled || !isLong) { setRulerY(null); return; }
+
+    function onMove(e: MouseEvent) {
+      const outer = outerRef.current;
+      const content = contentRef.current;
+      if (!outer || !content) return;
+      const outerRect = outer.getBoundingClientRect();
+      const inside =
+        e.clientX >= outerRect.left && e.clientX <= outerRect.right &&
+        e.clientY >= outerRect.top && e.clientY <= outerRect.bottom;
+      if (!inside) { setRulerY(null); return; }
+      setRulerY(e.clientY - content.getBoundingClientRect().top);
+    }
+
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [rulerEnabled, isLong]);
+
+  const showRuler = rulerEnabled && isLong && rulerY !== null;
+
   return (
-    <div className={className}>
-      {isLong && !rulerEnabled && onToggleRuler && (
-        <RulerButton onClick={onToggleRuler} highContrast={highContrast} />
+    <div ref={outerRef} className={`relative ${className ?? ""}`}>
+      {isLong && (
+        <RulerButton
+          onClick={() => setRulerEnabled((r) => !r)}
+          highContrast={highContrast}
+          active={rulerEnabled}
+        />
       )}
-      <div ref={contentRef}>
+      <div ref={contentRef} className="relative">
+        {showRuler && (
+          <>
+            {/* highlight line na posição do cursor */}
+            <div
+              className="pointer-events-none absolute inset-x-0 z-20 border-y-2 border-[#f4c400] opacity-75"
+              style={{ top: rulerY - RULER_H / 2, height: RULER_H, backgroundColor: overlayColor }}
+              aria-hidden="true"
+            />
+            {/* blur no texto abaixo da régua */}
+            <div
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10"
+              style={{ top: rulerY + RULER_H / 2, backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+              aria-hidden="true"
+            />
+          </>
+        )}
         {children}
       </div>
     </div>
@@ -209,7 +257,6 @@ export default function AdaptedStudyMaterial({
   isDownloading = false,
   downloadMessage = "",
   downloadStatus = "idle",
-  onToggleRuler,
 }: Props) {
   const highContrast = settings.high_contrast;
   const keyIdeas = safeCards(material.keyIdeas, [
@@ -315,7 +362,7 @@ export default function AdaptedStudyMaterial({
           <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
             Resumo simples
           </h3>
-          <CardBody rulerEnabled={settings.ruler_enabled} onToggleRuler={onToggleRuler} highContrast={highContrast}>
+          <CardBody overlayColor={settings.overlay_color} highContrast={highContrast}>
             <p className="mt-5 max-w-3xl break-words text-base leading-loose">
               <Md text={material.summary} />
             </p>
@@ -336,8 +383,7 @@ export default function AdaptedStudyMaterial({
                     ? "rounded-2xl border border-white/30 bg-white/5 p-5"
                     : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
                 }
-                rulerEnabled={settings.ruler_enabled}
-                onToggleRuler={onToggleRuler}
+                overlayColor={settings.overlay_color}
                 highContrast={highContrast}
               >
                 <h4 className="break-words text-base font-extrabold">
@@ -361,8 +407,7 @@ export default function AdaptedStudyMaterial({
               <CardBody
                 key={`${item.term}-${index}`}
                 className={highContrast ? "rounded-xl bg-white/5 p-4" : "rounded-xl bg-[#f0fdf4] p-4"}
-                rulerEnabled={settings.ruler_enabled}
-                onToggleRuler={onToggleRuler}
+                overlayColor={settings.overlay_color}
                 highContrast={highContrast}
               >
                 <dt className="break-words text-base font-extrabold">
@@ -381,23 +426,25 @@ export default function AdaptedStudyMaterial({
           <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
             Passo a passo
           </h3>
-          <ol className="mt-5 flex flex-col gap-6">
-            {steps.map((step, index) => (
-              <li key={`${step}-${index}`} className="flex gap-5">
-                <span
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white ${
-                    highContrast ? "bg-white !text-[#07111f]" : ""
-                  }`}
-                  style={highContrast ? undefined : { background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-                >
-                  {index + 1}
-                </span>
-                <span className="min-w-0 break-words pt-1 text-base leading-loose">
-                  <Md text={step} />
-                </span>
-              </li>
-            ))}
-          </ol>
+          <CardBody overlayColor={settings.overlay_color} highContrast={highContrast}>
+            <ol className="mt-5 flex flex-col gap-6">
+              {steps.map((step, index) => (
+                <li key={`${step}-${index}`} className="flex gap-5">
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white ${
+                      highContrast ? "bg-white !text-[#07111f]" : ""
+                    }`}
+                    style={highContrast ? undefined : { background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 break-words pt-1 text-base leading-loose">
+                    <Md text={step} />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </CardBody>
         </section>
 
         {/* Mapa conceitual */}
@@ -446,8 +493,7 @@ export default function AdaptedStudyMaterial({
                     ? "rounded-2xl border border-white/30 bg-white/5 p-5"
                     : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
                 }
-                rulerEnabled={settings.ruler_enabled}
-                onToggleRuler={onToggleRuler}
+                overlayColor={settings.overlay_color}
                 highContrast={highContrast}
               >
                 <h4 className="break-words text-base font-extrabold">
@@ -475,8 +521,7 @@ export default function AdaptedStudyMaterial({
                     ? "rounded-2xl bg-white/5 p-5"
                     : "rounded-2xl border border-[#fde68a] bg-[#fef9c3] p-5"
                 }
-                rulerEnabled={settings.ruler_enabled}
-                onToggleRuler={onToggleRuler}
+                overlayColor={settings.overlay_color}
                 highContrast={highContrast}
               >
                 <p className="break-words text-base font-extrabold">
@@ -495,7 +540,7 @@ export default function AdaptedStudyMaterial({
           <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
             Guia de estudo
           </h3>
-          <CardBody rulerEnabled={settings.ruler_enabled} onToggleRuler={onToggleRuler} highContrast={highContrast}>
+          <CardBody overlayColor={settings.overlay_color} highContrast={highContrast}>
             <ul className="mt-5 flex flex-col gap-5">
               {studyGuide.map((item, index) => (
                 <li key={`${item}-${index}`} className="flex gap-4">

@@ -680,7 +680,6 @@ export default function PDFLibrary() {
                   isDownloading={downloadState.id === activeAdaptation.id && downloadState.status === "generating"}
                   downloadMessage={downloadState.id === activeAdaptation.id ? downloadState.message : ""}
                   downloadStatus={downloadState.id === activeAdaptation.id ? downloadState.status : "idle"}
-                  onToggleRuler={() => setSettings((s) => ({ ...s, ruler_enabled: true }))}
                 />
               </div>
             )}
