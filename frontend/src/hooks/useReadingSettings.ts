@@ -4,7 +4,7 @@ import type { ReadingSettingsValue } from "../components/ReadingSettings";
 
 export const DEFAULT_READING_SETTINGS: ReadingSettingsValue = {
   font_preference: "OpenDyslexic",
-  font_size: 18,
+  font_size: 18, // clamped to 16–22 in UI
   overlay_color: "#FFF3CD",
   ruler_enabled: true,
   line_height: 1.8,

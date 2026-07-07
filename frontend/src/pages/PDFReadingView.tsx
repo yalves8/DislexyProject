@@ -23,7 +23,6 @@ export default function PDFReadingView() {
 
   const { settings, setSettings, saveSettings, loading: settingsLoading, saving, error } = useReadingSettings();
   const readingStyle = {
-    fontFamily: settings.font_preference,
     fontSize: settings.font_size,
     lineHeight: settings.line_height,
     letterSpacing: `${settings.letter_spacing}px`,
@@ -172,7 +171,6 @@ export default function PDFReadingView() {
               <div
                 className={`relative z-0 min-h-[430px] whitespace-pre-wrap ${settings.high_contrast ? "text-white" : "text-[#061c44]"}`}
                 style={{
-                  fontFamily: settings.font_preference,
                   fontSize: settings.font_size,
                   lineHeight: settings.line_height,
                   letterSpacing: `${settings.letter_spacing}px`,

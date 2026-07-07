@@ -1,21 +1,11 @@
 import { useState, FormEvent } from "react";
-import { useLocation, useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AppLogo from "../components/AppLogo";
-
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
 
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const redirectTo =
-    typeof location.state === "object" &&
-    location.state !== null &&
-    "from" in location.state &&
-    typeof location.state.from === "string"
-      ? location.state.from
-      : "/library";
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -25,28 +15,19 @@ export default function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail || "Credenciais inválidas");
-      }
-
-      const data = await res.json();
-      login({ username: data.username, token: data.access_token });
-      navigate(redirectTo);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao entrar");
-    } finally {
-      setLoading(false);
+    if (!username.trim() || !password.trim()) {
+      setError("Preencha usuário e senha.");
+      return;
     }
+
+    setLoading(true);
+    // Simula um breve delay de "autenticação" para demo
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    setLoading(false);
+
+    login({ username: username.trim(), token: `demo-${username.trim()}-${Date.now()}` });
+    navigate("/");
   }
 
   return (
@@ -62,7 +43,7 @@ export default function LoginPage() {
             <AppLogo />
           </div>
           <h1 className="text-xl font-extrabold text-[#064e3b]">Entrar</h1>
-          <p className="text-sm font-semibold text-[#047857]">Salve histórico e preferências</p>
+          <p className="text-sm font-semibold text-[#047857]">Salve histórico separado por usuário</p>
         </div>
 
         <Link
@@ -74,7 +55,7 @@ export default function LoginPage() {
         </Link>
 
         <p className="mb-4 text-center text-xs text-[#6b7280]">
-          Login é opcional — adapte PDFs sem criar conta.
+          Modo demonstração — qualquer usuário e senha funcionam.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">

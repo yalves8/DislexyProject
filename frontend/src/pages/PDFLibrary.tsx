@@ -1,5 +1,5 @@
 import { type ChangeEvent, type DragEvent, lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AccessibilityDrawer from "../components/AccessibilityDrawer";
 
 const PDFPageRangePicker = lazy(() => import("../components/PDFPageRangePicker"));
@@ -10,7 +10,7 @@ import AdaptedStudyMaterial, {
   type StudyCard,
 } from "../components/AdaptedStudyMaterial";
 import AppNavbar from "../components/AppNavbar";
-import { useAuth } from "../contexts/AuthContext";
+import HistoricoGuestModal from "../components/HistoricoGuestModal";
 import { useReadingSettings } from "../hooks/useReadingSettings";
 import {
   adaptPDFSelection,
@@ -20,15 +20,12 @@ import {
 } from "../services/pdfReaderApi";
 import { downloadAdaptationPdf } from "../services/adaptationPdf";
 import {
-  clearPendingAdaptation,
+  addToHistory,
   createHistoryId,
-  loadPendingAdaptation,
   removeLegacyHistory,
-  savePendingAdaptation,
-  SAVED_ADAPTATION_LIMIT,
   type AdaptationHistoryItem,
 } from "../services/adaptationHistory";
-import { saveAdaptation, listPDFs, docToHistoryItem } from "../services/pdfApi";
+import { useAuth } from "../contexts/AuthContext";
 
 const FREE_PAGE_LIMIT = 10;
 
@@ -180,7 +177,6 @@ export default function PDFLibrary() {
   const [errorMessage, setErrorMessage] = useState("");
   const [limitMessage, setLimitMessage] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
-  const [showGuestSavePrompt, setShowGuestSavePrompt] = useState(false);
   const [fileHandlerFallbackMessage, setFileHandlerFallbackMessage] = useState("");
   const [processingPhase, setProcessingPhase] = useState<ProcessingPhase>("idle");
   const [activeAdaptation, setActiveAdaptation] = useState<AdaptationHistoryItem | null>(null);
@@ -189,6 +185,7 @@ export default function PDFLibrary() {
     status: DownloadStatus;
     message: string;
   }>({ id: null, status: "idle", message: "" });
+  const [showGuestModal, setShowGuestModal] = useState(false);
 
   const { settings, setSettings, saveSettings, loading, saving, error } = useReadingSettings();
 
@@ -197,7 +194,6 @@ export default function PDFLibrary() {
   const isDownloadGenerating = downloadState.status === "generating";
   const openedFromFileRoute = location.pathname === "/open";
   const readingStyle = {
-    fontFamily: settings.font_preference,
     fontSize: settings.font_size,
     lineHeight: settings.line_height,
     letterSpacing: `${settings.letter_spacing}px`,
@@ -234,48 +230,7 @@ export default function PDFLibrary() {
 
   useEffect(() => {
     removeLegacyHistory();
-
-    if (!user) {
-      return;
-    }
-
-    const pendingAdaptation = loadPendingAdaptation();
-    clearPendingAdaptation();
-
-    void (async () => {
-      if (!pendingAdaptation) return;
-
-      try {
-        const docs = await listPDFs(user.token);
-        const items = docs.map(docToHistoryItem);
-
-        setShowGuestSavePrompt(false);
-
-        if (items.length >= SAVED_ADAPTATION_LIMIT) {
-          setActiveAdaptation({ ...pendingAdaptation, saved: false });
-          setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
-          return;
-        }
-
-        try {
-          await saveAdaptation(user.token, {
-            filename: pendingAdaptation.fileName,
-            startPage: pendingAdaptation.startPage,
-            endPage: pendingAdaptation.endPage,
-            material: pendingAdaptation.material,
-          });
-          setActiveAdaptation({ ...pendingAdaptation, saved: true });
-          setSaveMessage("Adaptação salva no histórico.");
-        } catch {
-          setActiveAdaptation({ ...pendingAdaptation, saved: false });
-          setSaveMessage("Não foi possível salvar a adaptação.");
-        }
-      } catch {
-        setActiveAdaptation({ ...pendingAdaptation, saved: false });
-        setSaveMessage("Não foi possível salvar a adaptação.");
-      }
-    })();
-  }, [user]);
+  }, []);
 
   function openFilePicker() {
     fileInputRef.current?.click();
@@ -285,7 +240,6 @@ export default function PDFLibrary() {
     setErrorMessage("");
     setLimitMessage("");
     setSaveMessage("");
-    setShowGuestSavePrompt(false);
     setFileHandlerFallbackMessage("");
     setDownloadState({ id: null, status: "idle", message: "" });
     setActiveAdaptation(null);
@@ -368,17 +322,6 @@ export default function PDFLibrary() {
     }
   }
 
-  function handleLoginToSave() {
-    if (activeAdaptation) {
-      savePendingAdaptation(activeAdaptation);
-    }
-    navigate("/login");
-  }
-
-  function handleContinueWithoutSaving() {
-    setShowGuestSavePrompt(false);
-    clearPendingAdaptation();
-  }
 
   async function handleAdapt(overridePages?: number[]) {
     if (!pdfInfo) {
@@ -404,7 +347,6 @@ export default function PDFLibrary() {
     setErrorMessage("");
     setLimitMessage("");
     setSaveMessage("");
-    setShowGuestSavePrompt(false);
     setDownloadState({ id: null, status: "idle", message: "" });
     setActiveAdaptation(null);
 
@@ -439,31 +381,9 @@ export default function PDFLibrary() {
         saved: false,
       };
 
-      if (!user) {
-        savePendingAdaptation(historyItem);
-        setActiveAdaptation(historyItem);
-        setShowGuestSavePrompt(true);
-        setSaveMessage("Adaptação concluída.");
-        return;
-      }
-
-      try {
-        await saveAdaptation(user.token, {
-          filename: pdfInfo.file.name,
-          startPage: start,
-          endPage: end,
-          material,
-        });
-        setActiveAdaptation({ ...historyItem, saved: true });
-        setSaveMessage("Adaptação salva no histórico.");
-      } catch (err) {
-        setActiveAdaptation(historyItem);
-        if (err instanceof Error && err.message.toLowerCase().includes("limite")) {
-          setSaveMessage("Seu histórico está cheio. Exclua uma adaptação antiga para salvar esta.");
-        } else {
-          setSaveMessage("Não foi possível salvar a adaptação no servidor.");
-        }
-      }
+      addToHistory(historyItem, user?.username);
+      setActiveAdaptation({ ...historyItem, saved: true });
+      setSaveMessage("Adaptação salva no histórico.");
     } catch (err) {
       setErrorMessage(
         err instanceof Error
@@ -708,19 +628,6 @@ export default function PDFLibrary() {
                       Ou arraste um arquivo PDF aqui
                     </p>
 
-                    {!user && (
-                      <div className={`mt-10 flex items-center gap-4 text-xs ${settings.high_contrast ? "text-[#9aa0a6]" : "text-[#9ca3af]"}`}>
-                        <Link to="/login" className="hover:text-[#10b981] transition-colors font-semibold">
-                          Entrar
-                        </Link>
-                        <span>·</span>
-                        <Link to="/register" className="hover:text-[#10b981] transition-colors font-semibold">
-                          Criar conta
-                        </Link>
-                        <span>·</span>
-                        <span>para salvar histórico</span>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -753,51 +660,17 @@ export default function PDFLibrary() {
             {activeAdaptation && processingPhase === "idle" && (
               <div className="flex flex-col gap-4">
                 {saveMessage && (
-                  <div
-                    className={`rounded-xl border px-4 py-3 text-sm font-bold ${
-                      saveMessage.includes("cheio")
-                        ? "border-[#f0d08a] bg-[#fff7df] text-[#76520a]"
-                        : "border-[#6ee7b7] bg-[#d1fae5] text-[#064e3b]"
-                    }`}
-                  >
+                  <div className="flex items-center justify-between gap-4 rounded-xl border border-[#6ee7b7] bg-[#d1fae5] px-4 py-3 text-sm font-bold text-[#064e3b]">
                     <p>{saveMessage}</p>
-                    {user && saveMessage.includes("histórico") && (
-                      <button
-                        type="button"
-                        onClick={() => navigate("/historico")}
-                        className="mt-2 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
-                        style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-                      >
-                        Ver histórico
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => user ? navigate("/historico") : setShowGuestModal(true)}
+                      className="shrink-0 rounded-xl px-3 py-2 text-xs font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                    >
+                      Ver histórico
+                    </button>
                   </div>
-                )}
-
-                {showGuestSavePrompt && !user && (
-                  <section className="rounded-2xl border border-[#a7f3d0] bg-white/80 p-4 backdrop-blur-sm">
-                    <h3 className="font-extrabold text-[#064e3b]">Quer acessar esta adaptação depois?</h3>
-                    <p className="mt-2 text-sm font-semibold text-[#047857]">
-                      Entre na sua conta para salvar este material no histórico.
-                    </p>
-                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={handleLoginToSave}
-                        className="min-h-11 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
-                        style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-                      >
-                        Entrar para salvar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleContinueWithoutSaving}
-                        className="min-h-11 rounded-xl border border-[#a7f3d0] bg-white/80 px-4 py-3 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4]"
-                      >
-                        Continuar sem salvar
-                      </button>
-                    </div>
-                  </section>
                 )}
 
                 <AdaptedStudyMaterial
@@ -807,6 +680,7 @@ export default function PDFLibrary() {
                   isDownloading={downloadState.id === activeAdaptation.id && downloadState.status === "generating"}
                   downloadMessage={downloadState.id === activeAdaptation.id ? downloadState.message : ""}
                   downloadStatus={downloadState.id === activeAdaptation.id ? downloadState.status : "idle"}
+                  onToggleRuler={() => setSettings((s) => ({ ...s, ruler_enabled: true }))}
                 />
               </div>
             )}
@@ -824,6 +698,13 @@ export default function PDFLibrary() {
         onClose={() => setDrawerOpen(false)}
         onSave={saveSettings}
       />
+
+      {showGuestModal && (
+        <HistoricoGuestModal
+          onConfirm={() => { setShowGuestModal(false); navigate("/login"); }}
+          onCancel={() => setShowGuestModal(false)}
+        />
+      )}
 
       {showRangePicker && pdfInfo && (
         <Suspense fallback={null}>

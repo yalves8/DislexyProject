@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { ReadingSettingsValue } from "./ReadingSettings";
 import type { RagMetadata } from "../services/pdfReaderApi";
 
@@ -41,6 +42,64 @@ interface Props {
   isDownloading?: boolean;
   downloadMessage?: string;
   downloadStatus?: "idle" | "generating" | "success" | "error";
+  onToggleRuler?: () => void;
+}
+
+const LINE_HEIGHT_PX = 32; // approx line height at default settings (18px * 1.8)
+const RULER_THRESHOLD_LINES = 5;
+
+function RulerButton({ onClick, highContrast }: { onClick: () => void; highContrast: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Ativar régua de leitura"
+      aria-label="Ativar régua de leitura"
+      className={`mb-3 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+        highContrast
+          ? "border border-white/30 bg-white/5 text-[#9ee6c5] hover:bg-white/10"
+          : "border border-[#a7f3d0] bg-[#d1fae5] text-[#047857] hover:bg-[#bbf7d0]"
+      }`}
+    >
+      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+      </svg>
+      Ativar régua
+    </button>
+  );
+}
+
+function CardBody({
+  children,
+  className,
+  rulerEnabled,
+  onToggleRuler,
+  highContrast,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  rulerEnabled: boolean;
+  onToggleRuler?: () => void;
+  highContrast: boolean;
+}) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isLong, setIsLong] = useState(false);
+
+  useEffect(() => {
+    if (!contentRef.current) return;
+    setIsLong(contentRef.current.scrollHeight / LINE_HEIGHT_PX > RULER_THRESHOLD_LINES);
+  }, []);
+
+  return (
+    <div className={className}>
+      {isLong && !rulerEnabled && onToggleRuler && (
+        <RulerButton onClick={onToggleRuler} highContrast={highContrast} />
+      )}
+      <div ref={contentRef}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 const sectionTitleClass = "border-l-4 border-[#10b981] pl-3 text-xl font-extrabold text-[#064e3b]";
@@ -150,6 +209,7 @@ export default function AdaptedStudyMaterial({
   isDownloading = false,
   downloadMessage = "",
   downloadStatus = "idle",
+  onToggleRuler,
 }: Props) {
   const highContrast = settings.high_contrast;
   const keyIdeas = safeCards(material.keyIdeas, [
@@ -175,7 +235,6 @@ export default function AdaptedStudyMaterial({
           : "border-white/60 bg-white/80 text-[#064e3b] shadow-[0_8px_32px_rgba(16,185,129,0.10)] backdrop-blur-sm"
       }`}
       style={{
-        fontFamily: settings.font_preference,
         fontSize: settings.font_size,
         lineHeight: settings.line_height,
         letterSpacing: `${settings.letter_spacing}px`,
@@ -256,9 +315,11 @@ export default function AdaptedStudyMaterial({
           <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
             Resumo simples
           </h3>
-          <p className="mt-5 max-w-3xl break-words text-base leading-loose">
-            <Md text={material.summary} />
-          </p>
+          <CardBody rulerEnabled={settings.ruler_enabled} onToggleRuler={onToggleRuler} highContrast={highContrast}>
+            <p className="mt-5 max-w-3xl break-words text-base leading-loose">
+              <Md text={material.summary} />
+            </p>
+          </CardBody>
         </section>
 
         {/* Ideias principais — 2 colunas máximo */}
@@ -268,13 +329,16 @@ export default function AdaptedStudyMaterial({
           </h3>
           <div className="mt-5 grid min-w-0 gap-5 sm:grid-cols-2">
             {keyIdeas.map((idea, index) => (
-              <div
+              <CardBody
                 key={`${idea.title}-${index}`}
                 className={
                   highContrast
                     ? "rounded-2xl border border-white/30 bg-white/5 p-5"
                     : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
                 }
+                rulerEnabled={settings.ruler_enabled}
+                onToggleRuler={onToggleRuler}
+                highContrast={highContrast}
               >
                 <h4 className="break-words text-base font-extrabold">
                   <Md text={idea.title} />
@@ -282,7 +346,7 @@ export default function AdaptedStudyMaterial({
                 <p className="mt-3 break-words text-base leading-loose">
                   <Md text={idea.description} />
                 </p>
-              </div>
+              </CardBody>
             ))}
           </div>
         </section>
@@ -294,9 +358,12 @@ export default function AdaptedStudyMaterial({
           </h3>
           <dl className="mt-5 grid gap-5 sm:grid-cols-2">
             {glossary.map((item, index) => (
-              <div
+              <CardBody
                 key={`${item.term}-${index}`}
                 className={highContrast ? "rounded-xl bg-white/5 p-4" : "rounded-xl bg-[#f0fdf4] p-4"}
+                rulerEnabled={settings.ruler_enabled}
+                onToggleRuler={onToggleRuler}
+                highContrast={highContrast}
               >
                 <dt className="break-words text-base font-extrabold">
                   <Md text={item.term} />
@@ -304,7 +371,7 @@ export default function AdaptedStudyMaterial({
                 <dd className="mt-2 break-words text-base leading-loose">
                   <Md text={item.definition} />
                 </dd>
-              </div>
+              </CardBody>
             ))}
           </dl>
         </section>
@@ -372,13 +439,16 @@ export default function AdaptedStudyMaterial({
           </h3>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             {examples.map((example, index) => (
-              <div
+              <CardBody
                 key={`${example.title}-${index}`}
                 className={
                   highContrast
                     ? "rounded-2xl border border-white/30 bg-white/5 p-5"
                     : "rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4] p-5"
                 }
+                rulerEnabled={settings.ruler_enabled}
+                onToggleRuler={onToggleRuler}
+                highContrast={highContrast}
               >
                 <h4 className="break-words text-base font-extrabold">
                   <Md text={example.title} />
@@ -386,7 +456,7 @@ export default function AdaptedStudyMaterial({
                 <p className="mt-3 break-words text-base leading-loose">
                   <Md text={example.description} />
                 </p>
-              </div>
+              </CardBody>
             ))}
           </div>
         </section>
@@ -398,13 +468,16 @@ export default function AdaptedStudyMaterial({
           </h3>
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             {formulas.map((formula, index) => (
-              <div
+              <CardBody
                 key={`${formula.title}-${index}`}
                 className={
                   highContrast
                     ? "rounded-2xl bg-white/5 p-5"
                     : "rounded-2xl border border-[#fde68a] bg-[#fef9c3] p-5"
                 }
+                rulerEnabled={settings.ruler_enabled}
+                onToggleRuler={onToggleRuler}
+                highContrast={highContrast}
               >
                 <p className="break-words text-base font-extrabold">
                   <Md text={formula.title} />
@@ -412,7 +485,7 @@ export default function AdaptedStudyMaterial({
                 <p className="mt-3 break-words text-base leading-loose">
                   <Md text={formula.description} />
                 </p>
-              </div>
+              </CardBody>
             ))}
           </div>
         </section>
@@ -422,16 +495,18 @@ export default function AdaptedStudyMaterial({
           <h3 className={highContrast ? "border-l-4 border-white pl-3 text-xl font-extrabold text-white" : sectionTitleClass}>
             Guia de estudo
           </h3>
-          <ul className="mt-5 flex flex-col gap-5">
-            {studyGuide.map((item, index) => (
-              <li key={`${item}-${index}`} className="flex gap-4">
-                <span className="mt-1 shrink-0 text-base font-bold text-[#10b981]">✓</span>
-                <span className="min-w-0 break-words text-base leading-loose">
-                  <Md text={item} />
-                </span>
-              </li>
-            ))}
-          </ul>
+          <CardBody rulerEnabled={settings.ruler_enabled} onToggleRuler={onToggleRuler} highContrast={highContrast}>
+            <ul className="mt-5 flex flex-col gap-5">
+              {studyGuide.map((item, index) => (
+                <li key={`${item}-${index}`} className="flex gap-4">
+                  <span className="mt-1 shrink-0 text-base font-bold text-[#10b981]">✓</span>
+                  <span className="min-w-0 break-words text-base leading-loose">
+                    <Md text={item} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
         </section>
 
         {/* Quiz rápido — full width */}

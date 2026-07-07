@@ -13,39 +13,12 @@ interface Props {
   onChange: (s: ReadingSettingsValue) => void;
 }
 
-const FONTS = ["OpenDyslexic", "Comic Sans MS", "Arial"];
-
 export default function ReadingSettings({ value, onChange }: Props) {
   const set = (patch: Partial<ReadingSettingsValue>) => onChange({ ...value, ...patch });
 
   return (
     <div className="flex flex-col gap-5 rounded-lg border border-gray-200 p-5">
-      <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-        Ajustes de leitura
-      </h3>
-
-      <div className="flex flex-col gap-2">
-        <label className="text-sm text-gray-600 flex items-center gap-1">
-          Fonte amigável
-        </label>
-        {FONTS.map((f) => (
-          <label
-            key={f}
-            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 transition-colors ${
-              value.font_preference === f ? "border-blue-500 bg-blue-50" : "border-gray-200"
-            }`}
-          >
-            <input
-              type="radio"
-              name="font"
-              checked={value.font_preference === f}
-              onChange={() => set({ font_preference: f })}
-              className="accent-blue-500"
-            />
-            <span style={{ fontFamily: f }}>{f}</span>
-          </label>
-        ))}
-      </div>
+      <h3 className="font-semibold text-gray-700">Ajustes de leitura</h3>
 
       <div className="flex flex-col gap-2">
         <label className="text-sm text-gray-600">Régua de leitura</label>
@@ -79,8 +52,8 @@ export default function ReadingSettings({ value, onChange }: Props) {
         </label>
         <input
           type="range"
-          min={14}
-          max={28}
+          min={16}
+          max={22}
           value={value.font_size}
           onChange={(e) => set({ font_size: Number(e.target.value) })}
           className="w-full accent-blue-500"

@@ -1,3 +1,4 @@
+import ast
 import json
 import re
 from typing import Any
@@ -96,7 +97,8 @@ Gere a adaptação exatamente neste formato JSON:
 
 def extract_json_object(text: str) -> dict[str, Any]:
     clean = text.strip()
-    clean = re.sub(r"^```(?:json)?", "", clean).strip()
+    # Strip common markdown code fences (```json, ```python, ```)
+    clean = re.sub(r"^```[a-zA-Z]*\n?", "", clean).strip()
     clean = re.sub(r"```$", "", clean).strip()
 
     try:
@@ -109,9 +111,20 @@ def extract_json_object(text: str) -> dict[str, Any]:
     start = clean.find("{")
     end = clean.rfind("}")
     if start >= 0 and end > start:
-        parsed = json.loads(clean[start : end + 1])
-        if isinstance(parsed, dict):
-            return parsed
+        candidate = clean[start : end + 1]
+        try:
+            parsed = json.loads(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        # Fallback: Gemini às vezes retorna Python dict literal com aspas simples
+        try:
+            parsed = ast.literal_eval(candidate)
+            if isinstance(parsed, dict):
+                return parsed
+        except (ValueError, SyntaxError):
+            pass
 
     raise ValueError("Resposta da IA não está em JSON válido")
 
@@ -155,11 +168,32 @@ def _glossary(value: Any, fallback: list[dict[str, str]]) -> list[dict[str, str]
 
 
 def _string_list(value: Any, fallback: list[str]) -> list[str]:
-    if isinstance(value, list):
-        items = [str(item).strip() for item in value if str(item).strip()]
-        if items:
-            return items[:8]
-    return fallback
+    if not isinstance(value, list):
+        return fallback
+
+    items: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            items.append(item.strip())
+        elif isinstance(item, dict):
+            # Gemini às vezes retorna dicts em vez de strings nos campos de lista
+            title = str(item.get("title") or item.get("step") or item.get("name") or "").strip()
+            desc = str(item.get("description") or item.get("content") or "").strip()
+            sub = item.get("steps") or item.get("items") or item.get("substeps")
+            if isinstance(sub, list):
+                if title:
+                    items.append(title)
+                for s in sub:
+                    if isinstance(s, str) and s.strip():
+                        items.append(s.strip())
+            elif title and desc:
+                items.append(f"{title}: {desc}")
+            elif title:
+                items.append(title)
+            elif desc:
+                items.append(desc)
+
+    return items[:8] if items else fallback
 
 
 def _quiz(value: Any, fallback: list[dict[str, str]]) -> list[dict[str, str]]:

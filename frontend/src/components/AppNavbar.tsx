@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import HistoricoGuestModal from "./HistoricoGuestModal";
 import AppLogo from "./AppLogo";
 
 interface Props {
@@ -13,30 +14,41 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
   const location = useLocation();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showGuestModal, setShowGuestModal] = useState(false);
 
-  function handleLogout() {
-    if (!user) {
-      navigate("/login", { state: { from: location.pathname } });
-      return;
-    }
-
-    logout();
-    navigate("/", { replace: true });
-  }
-
-  function goToLibrary() {
-    setSidebarOpen(false);
-    navigate("/");
-  }
+  const isOnLeitor = location.pathname === "/" || location.pathname === "/open";
+  const isOnHistorico = location.pathname === "/historico";
 
   function openAccessibility() {
     setSidebarOpen(false);
     onAccessibility();
   }
 
-  function openHistory() {
+  function handleHistoricoClick() {
     setSidebarOpen(false);
-    navigate("/historico");
+    if (user) {
+      navigate("/historico");
+    } else {
+      setShowGuestModal(true);
+    }
+  }
+
+  function handleLogout() {
+    setSidebarOpen(false);
+    logout();
+    navigate("/");
+  }
+
+  function navClass(active: boolean) {
+    return active
+      ? "text-sm font-bold text-[#10b981] border-b-2 border-[#10b981] pb-0.5"
+      : "text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]";
+  }
+
+  function mobileNavClass(active: boolean) {
+    return active
+      ? "rounded-xl bg-[#d1fae5] px-3 py-3 text-left text-sm font-bold text-[#10b981]"
+      : "rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]";
   }
 
   return (
@@ -45,47 +57,46 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
         <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-4">
           <button
             type="button"
-            onClick={goToLibrary}
+            onClick={() => navigate("/")}
             className="flex min-w-0 items-center text-left font-bold text-[#064e3b]"
             aria-label="Ir para o leitor Luz"
           >
             <AppLogo />
           </button>
 
-          <nav className="hidden items-center gap-4 md:flex">
-            <button
-              type="button"
-              onClick={goToLibrary}
-              className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
-            >
+          <nav className="hidden items-center gap-6 md:flex">
+            <button type="button" onClick={() => navigate("/")} className={navClass(isOnLeitor)}>
               Leitor
             </button>
-            {user && (
-              <button
-                type="button"
-                onClick={openHistory}
-                className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
-              >
-                Histórico
-              </button>
-            )}
+            <button type="button" onClick={handleHistoricoClick} className={navClass(isOnHistorico)}>
+              Histórico
+            </button>
             {showDesktopAccessibility && (
-              <button
-                type="button"
-                onClick={openAccessibility}
-                className="text-sm font-semibold text-[#064e3b] transition hover:text-[#10b981]"
-              >
+              <button type="button" onClick={openAccessibility} className={navClass(false)}>
                 Acessibilidade
               </button>
             )}
-            {user && <span className="text-sm font-semibold text-[#047857]">{user.username}</span>}
-            <button
-              type="button"
-              onClick={handleLogout}
-              className={`text-sm font-semibold transition hover:underline ${user ? "text-red-500" : "text-[#064e3b] hover:text-[#10b981]"}`}
-            >
-              {user ? "Sair" : "Entrar"}
-            </button>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-[#047857]">{user.username}</span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="rounded-xl border border-[#a7f3d0] bg-white/80 px-3 py-1.5 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4]"
+                >
+                  Sair
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate("/login")}
+                className="rounded-xl px-4 py-1.5 text-sm font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+              >
+                Entrar
+              </button>
+            )}
           </nav>
 
           <button
@@ -108,13 +119,10 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
             aria-label="Fechar menu"
           />
 
-          <aside className="relative flex h-full w-72 flex-col gap-5 bg-white/95 p-5 shadow-2xl backdrop-blur-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex items-center">
-                  <AppLogo />
-                </div>
-                {user && <p className="mt-1 text-sm font-semibold text-[#047857]">{user.username}</p>}
+          <aside className="relative flex h-full w-72 flex-col gap-2 bg-white/95 p-5 shadow-2xl backdrop-blur-sm">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-center">
+                <AppLogo />
               </div>
               <button
                 type="button"
@@ -126,43 +134,60 @@ export default function AppNavbar({ onAccessibility, showDesktopAccessibility = 
               </button>
             </div>
 
-            <div className="h-px bg-[#a7f3d0]" />
+            {user && (
+              <p className="px-3 text-sm font-bold text-[#047857]">{user.username}</p>
+            )}
+
+            <div className="h-px bg-[#a7f3d0] mb-1" />
 
             <button
               type="button"
-              onClick={goToLibrary}
-              className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
+              onClick={() => { setSidebarOpen(false); navigate("/"); }}
+              className={mobileNavClass(isOnLeitor)}
             >
               Leitor
             </button>
-            {user && (
-              <button
-                type="button"
-                onClick={openHistory}
-                className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
-              >
-                Histórico
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleHistoricoClick}
+              className={mobileNavClass(isOnHistorico)}
+            >
+              Histórico
+            </button>
             <button
               type="button"
               onClick={openAccessibility}
-              className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
+              className={mobileNavClass(false)}
             >
               Acessibilidade
             </button>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className={`mt-auto rounded-xl px-3 py-3 text-left text-sm font-semibold ${
-                user ? "text-red-500 hover:bg-red-50" : "text-[#064e3b] hover:bg-[#f0fdf4]"
-              }`}
-            >
-              {user ? "Sair" : "Entrar"}
-            </button>
+            {user ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#064e3b] hover:bg-[#f0fdf4]"
+              >
+                Sair
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setSidebarOpen(false); navigate("/login"); }}
+                className="mt-1 rounded-xl px-3 py-3 text-left text-sm font-bold text-white hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+              >
+                Entrar
+              </button>
+            )}
           </aside>
         </div>
+      )}
+
+      {showGuestModal && (
+        <HistoricoGuestModal
+          onConfirm={() => { setShowGuestModal(false); navigate("/login"); }}
+          onCancel={() => setShowGuestModal(false)}
+        />
       )}
     </>
   );

@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import AccessibilityDrawer from "../components/AccessibilityDrawer";
 import AdaptedStudyMaterial from "../components/AdaptedStudyMaterial";
 import AppNavbar from "../components/AppNavbar";
 import { useAuth } from "../contexts/AuthContext";
 import { useReadingSettings } from "../hooks/useReadingSettings";
 import { downloadAdaptationPdf } from "../services/adaptationPdf";
-import { SAVED_ADAPTATION_LIMIT, type AdaptationHistoryItem } from "../services/adaptationHistory";
-import { listPDFs, deletePDF, docToHistoryItem } from "../services/pdfApi";
+import {
+  loadHistory,
+  removeFromHistory,
+  SAVED_ADAPTATION_LIMIT,
+  type AdaptationHistoryItem,
+} from "../services/adaptationHistory";
 
 type DownloadStatus = "idle" | "generating" | "success" | "error";
 
@@ -40,46 +44,24 @@ export default function HistoryPage() {
   const isDownloadGenerating = downloadState.status === "generating";
   const historyLimitReached = history.length >= SAVED_ADAPTATION_LIMIT;
   const readingStyle = {
-    fontFamily: settings.font_preference,
     fontSize: settings.font_size,
     lineHeight: settings.line_height,
     letterSpacing: `${settings.letter_spacing}px`,
   };
 
+  if (!user) return <Navigate to="/login" replace />;
+
   useEffect(() => {
-    if (!user) {
-      setHistory([]);
-      setSelectedItem(null);
-      return;
-    }
+    setHistory(loadHistory(user?.username));
+  }, [user?.username]);
 
-    void listPDFs(user.token)
-      .then((docs) => {
-        const items = docs.map(docToHistoryItem);
-        setHistory(items);
-        setSelectedItem((current) => {
-          if (!current) return null;
-          return items.find((item) => item.id === current.id) ?? null;
-        });
-      })
-      .catch(() => {
-        setHistory([]);
-        setStatusMessage("Não foi possível carregar o histórico. Verifique sua conexão.");
-      });
-  }, [user]);
-
-  async function handleDelete(item: AdaptationHistoryItem) {
+  function handleDelete(item: AdaptationHistoryItem) {
     const confirmed = window.confirm("Excluir esta adaptação do histórico?");
-    if (!confirmed || !user) return;
-
-    try {
-      await deletePDF(Number(item.id), user.token);
-      setHistory((prev) => prev.filter((h) => h.id !== item.id));
-      if (selectedItem?.id === item.id) setSelectedItem(null);
-      setStatusMessage("Adaptação excluída do histórico.");
-    } catch {
-      setStatusMessage("Não foi possível excluir a adaptação. Tente novamente.");
-    }
+    if (!confirmed) return;
+    removeFromHistory(item.id, user?.username);
+    setHistory(loadHistory(user?.username));
+    if (selectedItem?.id === item.id) setSelectedItem(null);
+    setStatusMessage("Adaptação excluída do histórico.");
   }
 
   async function handleDownload(item: AdaptationHistoryItem) {
@@ -132,131 +114,106 @@ export default function HistoryPage() {
             <div>
               <h1 className="text-2xl font-extrabold">Histórico</h1>
               <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                Suas adaptações salvas
+                {user ? `Histórico de ${user.username}` : "Suas adaptações como visitante"}
               </p>
             </div>
-
-            {user && (
-              <span
-                className={`w-fit rounded-xl px-3 py-2 text-sm font-bold ${
-                  historyLimitReached ? "bg-[#fff7df] text-[#76520a]" : "bg-[#d1fae5] text-[#064e3b]"
-                }`}
-              >
-                {history.length}/{SAVED_ADAPTATION_LIMIT}
-              </span>
-            )}
+            <span
+              className={`w-fit rounded-xl px-3 py-2 text-sm font-bold ${
+                historyLimitReached ? "bg-[#fff7df] text-[#76520a]" : "bg-[#d1fae5] text-[#064e3b]"
+              }`}
+            >
+              {history.length}/{SAVED_ADAPTATION_LIMIT}
+            </span>
           </div>
 
-          {!user ? (
-            <div className="mt-6 rounded-2xl border border-[#a7f3d0] bg-[#f0fdf4]/60 p-5">
-              <h2 className="text-lg font-extrabold text-[#064e3b]">Entre ou cadastre-se para acessar seu histórico.</h2>
-              <p className="mt-2 text-sm font-semibold text-[#047857]">
-                As adaptações ficam salvas na sua conta.
+          {statusMessage && (
+            <p className="mt-4 rounded-xl border border-[#6ee7b7] bg-[#d1fae5] px-4 py-3 text-sm font-bold text-[#064e3b]">
+              {statusMessage}
+            </p>
+          )}
+
+          {history.length === 0 ? (
+            <div
+              className={`mt-5 rounded-2xl border border-dashed p-6 text-center ${
+                settings.high_contrast ? "border-white/30" : "border-[#a7f3d0]"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                Nenhuma adaptação salva ainda.
               </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => navigate("/login", { state: { from: "/historico" } })}
-                  className="min-h-11 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-                >
-                  Entrar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/register")}
-                  className="min-h-11 rounded-xl border border-[#a7f3d0] bg-white/80 px-5 py-3 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4]"
-                >
-                  Cadastrar-se
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="mt-4 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+              >
+                Adaptar um PDF
+              </button>
             </div>
           ) : (
-            <>
-              <p className={`mt-4 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                Plano gratuito: 5 adaptações salvas.
-              </p>
-
-              {statusMessage && (
-                <p className="mt-4 rounded-xl border border-[#6ee7b7] bg-[#d1fae5] px-4 py-3 text-sm font-bold text-[#064e3b]">
-                  {statusMessage}
-                </p>
-              )}
-
-              {history.length === 0 ? (
-                <p
-                  className={`mt-4 rounded-xl border border-dashed p-4 text-sm font-semibold ${
-                    settings.high_contrast ? "border-white/30 text-[#dce8f3]" : "border-[#a7f3d0] text-[#047857]"
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {history.map((item) => (
+                <article
+                  key={item.id}
+                  className={`min-w-0 rounded-2xl border p-4 ${
+                    settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#a7f3d0] bg-white/90"
                   }`}
                 >
-                  Nenhuma adaptação salva ainda.
-                </p>
-              ) : (
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {history.map((item) => (
-                    <article
-                      key={item.id}
-                      className={`min-w-0 rounded-2xl border p-4 ${
-                        settings.high_contrast ? "border-white/30 bg-white/5" : "border-[#a7f3d0] bg-white/90"
+                  <h2 className="truncate font-extrabold" title={item.fileName}>
+                    {item.fileName}
+                  </h2>
+                  <p className={`mt-2 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                    Páginas {item.startPage}–{item.endPage}
+                  </p>
+                  <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
+                    {formatHistoryDate(item.createdAt)}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedItem(item);
+                        setStatusMessage("");
+                      }}
+                      className="rounded-xl px-3 py-2 text-sm font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
+                      style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
+                    >
+                      Abrir
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDownload(item)}
+                      disabled={isDownloadGenerating}
+                      className="rounded-xl border border-[#a7f3d0] bg-white/80 px-3 py-2 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {downloadState.id === item.id && downloadState.status === "generating" ? "Gerando..." : "Baixar PDF"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item)}
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+
+                  {downloadState.id === item.id && downloadState.message && (
+                    <p
+                      className={`mt-3 text-sm font-bold ${
+                        downloadState.status === "error" ? "text-red-700" : "text-[#064e3b]"
                       }`}
                     >
-                      <h2 className="truncate font-extrabold" title={item.fileName}>
-                        {item.fileName}
-                      </h2>
-                      <p className={`mt-2 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                        Páginas {item.startPage}-{item.endPage}
-                      </p>
-                      <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                        {formatHistoryDate(item.createdAt)}
-                      </p>
-
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedItem(item);
-                            setStatusMessage("");
-                          }}
-                          className="rounded-xl px-3 py-2 text-sm font-bold text-white shadow-[0_2px_8px_rgba(16,185,129,0.25)] transition-opacity hover:opacity-90"
-                          style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
-                        >
-                          Abrir
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDownload(item)}
-                          disabled={isDownloadGenerating}
-                          className="rounded-xl border border-[#a7f3d0] bg-white/80 px-3 py-2 text-sm font-bold text-[#064e3b] transition hover:bg-[#f0fdf4] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {downloadState.id === item.id && downloadState.status === "generating" ? "Gerando..." : "Baixar PDF"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void handleDelete(item)}
-                          className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-
-                      {downloadState.id === item.id && downloadState.message && (
-                        <p
-                          className={`mt-3 text-sm font-bold ${
-                            downloadState.status === "error" ? "text-red-700" : "text-[#064e3b]"
-                          }`}
-                        >
-                          {downloadState.message}
-                        </p>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
-            </>
+                      {downloadState.message}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
           )}
         </section>
 
-        {user && selectedItem && (
+        {selectedItem && (
           <AdaptedStudyMaterial
             material={selectedItem.material}
             settings={settings}
@@ -264,6 +221,7 @@ export default function HistoryPage() {
             isDownloading={downloadState.id === selectedItem.id && downloadState.status === "generating"}
             downloadMessage={downloadState.id === selectedItem.id ? downloadState.message : ""}
             downloadStatus={downloadState.id === selectedItem.id ? downloadState.status : "idle"}
+            onToggleRuler={() => setSettings((s) => ({ ...s, ruler_enabled: true }))}
           />
         )}
       </main>

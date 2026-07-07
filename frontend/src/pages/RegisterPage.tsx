@@ -3,8 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AppLogo from "../components/AppLogo";
 
-const API_BASE = import.meta.env.VITE_API_URL || "/api";
-
 export default function RegisterPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -19,46 +17,28 @@ export default function RegisterPage() {
     e.preventDefault();
     setError("");
 
+    if (!username.trim()) {
+      setError("Escolha um nome de usuário.");
+      return;
+    }
+
     if (password !== confirm) {
-      setError("As senhas não coincidem");
+      setError("As senhas não coincidem.");
+      return;
+    }
+
+    if (password.length < 4) {
+      setError("A senha deve ter pelo menos 4 caracteres.");
       return;
     }
 
     setLoading(true);
+    // Simula um breve delay de "cadastro" para demo
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    setLoading(false);
 
-    try {
-      const registerRes = await fetch(`${API_BASE}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!registerRes.ok) {
-        const data = await registerRes.json().catch(() => ({}));
-        throw new Error(data.detail || "Erro ao cadastrar");
-      }
-
-      // login automático após cadastro
-      const loginRes = await fetch(`${API_BASE}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!loginRes.ok) {
-        throw new Error("Conta criada, mas não foi possível entrar. Tente fazer login.");
-      }
-
-      const data = await loginRes.json();
-      login({ username: data.username, token: data.access_token });
-
-      // sempre primeiro login após cadastro
-      navigate("/library");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao cadastrar");
-    } finally {
-      setLoading(false);
-    }
+    login({ username: username.trim(), token: `demo-${username.trim()}-${Date.now()}` });
+    navigate("/");
   }
 
   return (
@@ -74,7 +54,7 @@ export default function RegisterPage() {
             <AppLogo />
           </div>
           <h1 className="text-xl font-extrabold text-[#064e3b]">Criar conta</h1>
-          <p className="text-sm font-semibold text-[#047857]">Salve histórico e preferências</p>
+          <p className="text-sm font-semibold text-[#047857]">Histórico separado por usuário</p>
         </div>
 
         <Link
@@ -86,7 +66,7 @@ export default function RegisterPage() {
         </Link>
 
         <p className="mb-4 text-center text-xs text-[#6b7280]">
-          Login é opcional — adapte PDFs sem criar conta.
+          Modo demonstração — sem banco de dados, dados salvos no navegador.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -135,7 +115,7 @@ export default function RegisterPage() {
             className="w-full text-white font-bold py-3 rounded-xl transition-opacity disabled:opacity-60 shadow-[0_4px_14px_rgba(16,185,129,0.30)] mt-1"
             style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
           >
-            {loading ? "Criando conta..." : "✓ Criar conta"}
+            {loading ? "Criando..." : "Criar conta"}
           </button>
 
           <Link
