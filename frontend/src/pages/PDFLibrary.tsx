@@ -508,18 +508,20 @@ export default function PDFLibrary() {
                     {pdfInfo.file.name}
                   </dd>
                 </div>
-                <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3">
-                  <dt className={`font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>Páginas</dt>
-                  <dd className="text-right font-bold">
-                    {pdfInfo.pageCount}
-                    {pdfInfo.pageCountSource === "estimated" && <span className="font-medium"> estimadas</span>}
-                  </dd>
-                </div>
+                {!isImageFile(pdfInfo.file) && (
+                  <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-3">
+                    <dt className={`font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>Páginas</dt>
+                    <dd className="text-right font-bold">
+                      {pdfInfo.pageCount}
+                      {pdfInfo.pageCountSource === "estimated" && <span className="font-medium"> estimadas</span>}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </section>
           )}
 
-          {pdfInfo && (
+          {pdfInfo && !isImageFile(pdfInfo.file) && (
             <section
               className={`rounded-2xl border p-4 ${
                 settings.high_contrast
