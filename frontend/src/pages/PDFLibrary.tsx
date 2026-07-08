@@ -29,6 +29,18 @@ import { useAuth } from "../contexts/AuthContext";
 
 const FREE_PAGE_LIMIT = 10;
 
+const IMAGE_MIME_TYPES = new Set([
+  "image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/tiff",
+]);
+const IMAGE_EXTENSIONS = new Set([
+  ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tiff", ".tif",
+]);
+
+function isImageFile(file: File): boolean {
+  const ext = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+  return IMAGE_MIME_TYPES.has(file.type) || IMAGE_EXTENSIONS.has(ext);
+}
+
 type ProcessingPhase = "idle" | "loading-pdf" | "extracting" | "retrieving-rag" | "adapting" | "rendering";
 
 interface LocalPDFInfo {
@@ -107,7 +119,7 @@ function normalizeQuiz(value: AdaptPDFSelectionResponse["adaptation"]["quiz"], f
 }
 
 function fallbackMaterialTitle(fileName: string): string {
-  return fileName.replace(/\.pdf$/i, "") || "PDF selecionado";
+  return fileName.replace(/\.(pdf|jpe?g|png|webp|gif|bmp|tiff?)$/i, "") || "Arquivo selecionado";
 }
 
 function buildAdaptedMaterial(
@@ -127,9 +139,12 @@ function buildAdaptedMaterial(
     },
   ];
 
+  const isImage = isImageFile(pdfInfo.file);
   return {
     title: response.adaptation.title || `Estudo guiado: ${fallbackMaterialTitle(pdfInfo.file.name)}`,
-    sourceLabel: `PDF: ${pdfInfo.file.name} · páginas ${range.start}-${range.end} de ${pdfInfo.pageCount}`,
+    sourceLabel: isImage
+      ? `Imagem: ${pdfInfo.file.name}`
+      : `PDF: ${pdfInfo.file.name} · páginas ${range.start}-${range.end} de ${pdfInfo.pageCount}`,
     summary: response.adaptation.summary || "O trecho foi organizado em partes menores para facilitar o estudo.",
     keyIdeas: normalizeCards(response.adaptation.keyIdeas, fallbackCards),
     glossary: normalizeGlossary(response.adaptation.glossary, [
@@ -206,7 +221,7 @@ export default function PDFLibrary() {
       const [handle] = launchParams.files ?? [];
       if (!handle) {
         if (openedFromFileRoute) {
-          setFileHandlerFallbackMessage("Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o PDF.");
+          setFileHandlerFallbackMessage("Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o arquivo.");
         }
         return;
       }
@@ -224,7 +239,7 @@ export default function PDFLibrary() {
     }
 
     if (!("launchQueue" in window) || !window.launchQueue) {
-      setFileHandlerFallbackMessage("Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o PDF.");
+      setFileHandlerFallbackMessage("Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o arquivo.");
     }
   }, [openedFromFileRoute]);
 
@@ -245,12 +260,29 @@ export default function PDFLibrary() {
     setActiveAdaptation(null);
 
     if (!file) return;
-    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-      setErrorMessage("Escolha um arquivo PDF para continuar.");
+
+    const isImage = isImageFile(file);
+    if (!isImage && file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      setErrorMessage("Escolha um arquivo PDF ou imagem (JPG, PNG, WEBP...) para continuar.");
       return;
     }
 
     setProcessingPhase("loading-pdf");
+
+    if (isImage) {
+      const localInfo: LocalPDFInfo = {
+        file,
+        pageCount: 1,
+        sizeLabel: formatFileSize(file.size),
+        pageCountSource: "backend",
+      };
+      setPdfInfo(localInfo);
+      setShowRangePicker(false);
+      setProcessingPhase("idle");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      await handleAdapt([1], localInfo);
+      return;
+    }
 
     try {
       const info = await getPDFPageInfo(file);
@@ -323,9 +355,10 @@ export default function PDFLibrary() {
   }
 
 
-  async function handleAdapt(overridePages?: number[]) {
-    if (!pdfInfo) {
-      setErrorMessage("Abra um PDF antes de adaptar o conteúdo.");
+  async function handleAdapt(overridePages?: number[], pdfInfoOverride?: LocalPDFInfo) {
+    const info = pdfInfoOverride ?? pdfInfo;
+    if (!info) {
+      setErrorMessage("Abra um arquivo antes de adaptar o conteúdo.");
       return;
     }
 
@@ -354,28 +387,28 @@ export default function PDFLibrary() {
 
     try {
       setProcessingPhase("extracting");
-      const extracted = await extractPDFSelection(pdfInfo.file, pages);
+      const extracted = await extractPDFSelection(info.file, pages);
 
       setProcessingPhase("retrieving-rag");
       await new Promise((resolve) => setTimeout(resolve, 250));
 
       setProcessingPhase("adapting");
       const response = await adaptPDFSelection({
-        fileName: pdfInfo.file.name,
+        fileName: info.file.name,
         startPage: start,
         endPage: end,
         extractedText: extracted.extracted_text,
       });
 
       setProcessingPhase("rendering");
-      const material = buildAdaptedMaterial(pdfInfo, effectiveRange, response);
+      const material = buildAdaptedMaterial(info, effectiveRange, response);
       const historyItem: AdaptationHistoryItem = {
         id: createHistoryId(),
-        fileName: pdfInfo.file.name,
+        fileName: info.file.name,
         title: material.title,
         startPage: start,
         endPage: end,
-        pageCount: pdfInfo.pageCount,
+        pageCount: info.pageCount,
         createdAt: new Date().toISOString(),
         material,
         saved: false,
@@ -388,7 +421,7 @@ export default function PDFLibrary() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Não consegui processar este PDF agora. Tente outro intervalo ou outro arquivo.",
+          : "Não consegui processar este arquivo agora. Tente outro intervalo ou outro arquivo.",
       );
     } finally {
       setProcessingPhase("idle");
@@ -409,7 +442,7 @@ export default function PDFLibrary() {
         showDesktopAccessibility
       />
 
-      <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept="application/pdf,.pdf,image/*" className="hidden" onChange={handleFileChange} />
 
       <main className="mx-auto grid max-w-7xl gap-5 px-4 pb-10 pt-5 lg:grid-cols-[380px_minmax(0,1fr)]">
         <aside className="flex flex-col gap-4">
@@ -445,7 +478,7 @@ export default function PDFLibrary() {
               }`}
             >
               <p className={`mt-1 text-sm font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                Arraste ou escolha um arquivo PDF.
+                Arraste ou escolha um PDF ou imagem.
               </p>
               <button
                 type="button"
@@ -454,7 +487,7 @@ export default function PDFLibrary() {
                 className="mt-4 min-h-11 w-full rounded-xl px-4 py-3 text-sm font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.30)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: "linear-gradient(135deg, #10b981, #3b82f6)" }}
               >
-                Selecionar PDF
+                Selecionar arquivo
               </button>
             </div>
           </section>
@@ -572,7 +605,7 @@ export default function PDFLibrary() {
                   <>
                     <h2 className="text-2xl font-extrabold">Arquivo aberto no Luz</h2>
                     <p className={`mt-3 max-w-xl font-semibold ${settings.high_contrast ? "text-[#dce8f3]" : "text-[#047857]"}`}>
-                      {fileHandlerFallbackMessage || "Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o PDF."}
+                      {fileHandlerFallbackMessage || "Não foi possível receber o arquivo automaticamente. Use o botão abaixo para abrir o arquivo."}
                     </p>
                     <button
                       type="button"

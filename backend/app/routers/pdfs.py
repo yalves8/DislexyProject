@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.pdf_document import PDFDocument
 from app.services.pdf_extractor import extract_text_from_pdf, extract_text_from_pdf_range, extract_text_from_pdf_pages, get_pdf_page_count
 from app.services.pdf_adaptation import adapt_pdf_content_with_ai
+from app.services.image_extractor import is_image_file, extract_text_from_image
 
 router = APIRouter(prefix="/pdfs", tags=["pdfs"])
 
@@ -59,15 +60,20 @@ class SaveAdaptationBody(BaseModel):
     adaptation: dict
 
 
-def ensure_pdf(file: UploadFile) -> None:
+def ensure_supported_file(file: UploadFile) -> None:
     filename = file.filename or ""
-    if not filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Escolha um arquivo PDF para continuar.")
+    lower = filename.lower()
+    if not lower.endswith(".pdf") and not is_image_file(lower):
+        raise HTTPException(status_code=400, detail="Envie um arquivo PDF ou imagem (JPG, PNG, WEBP, etc.) para continuar.")
 
 
 @router.post("/page-info", response_model=PageInfoResponse)
 def page_info(file: UploadFile = File(...)):
-    ensure_pdf(file)
+    ensure_supported_file(file)
+    filename = file.filename or "arquivo"
+
+    if is_image_file(filename):
+        return PageInfoResponse(file_name=filename, page_count=1)
 
     try:
         pdf_bytes = file.file.read()
@@ -78,7 +84,7 @@ def page_info(file: UploadFile = File(...)):
     if page_count < 1:
         raise HTTPException(status_code=422, detail="Este PDF não possui páginas legíveis.")
 
-    return PageInfoResponse(file_name=file.filename or "documento.pdf", page_count=page_count)
+    return PageInfoResponse(file_name=filename, page_count=page_count)
 
 
 @router.post("/extract-selection", response_model=ExtractSelectionResponse)
@@ -88,7 +94,26 @@ def extract_selection(
     end_page: int = Form(default=1),
     pages: str = Form(default=""),  # comma-separated, e.g. "1,3,5-7,10"
 ):
-    ensure_pdf(file)
+    ensure_supported_file(file)
+    filename = file.filename or "arquivo"
+
+    if is_image_file(filename):
+        try:
+            image_bytes = file.file.read()
+            extracted_text = extract_text_from_image(image_bytes)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Não consegui extrair o texto da imagem.") from exc
+
+        if not extracted_text.strip():
+            raise HTTPException(status_code=422, detail="Não encontrei texto legível nesta imagem.")
+
+        return ExtractSelectionResponse(
+            file_name=filename,
+            page_count=1,
+            start_page=1,
+            end_page=1,
+            extracted_text=extracted_text,
+        )
 
     try:
         pdf_bytes = file.file.read()
@@ -114,7 +139,7 @@ def extract_selection(
         raise HTTPException(status_code=422, detail=OCR_MESSAGE)
 
     return ExtractSelectionResponse(
-        file_name=file.filename or "documento.pdf",
+        file_name=filename,
         page_count=page_count,
         start_page=start_page,
         end_page=end_page,
