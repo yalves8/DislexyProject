@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -9,19 +8,11 @@ from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
-from app.database import create_db_and_tables
-from app.routers import auth, students, pdfs
+from app.routers import pdfs
 
 FRONTEND_DIST = Path(__file__).parent.parent.parent / "frontend" / "dist"
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    create_db_and_tables()
-    yield
-
-
-app = FastAPI(title="DilexyProject API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Luz API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,8 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(students.router, prefix="/api")
 app.include_router(pdfs.router, prefix="/api")
 
 
